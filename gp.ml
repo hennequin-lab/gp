@@ -172,7 +172,10 @@ module New_figure (O: Output) (P: Parameters) : Figure = struct
     end_signal ()
 
   let send_columns m =
-    __send_columns (Array.map (fun x -> x |> Mat.to_array) m)
+    __send_columns (Array.map (fun x ->
+        let a, b = Mat.shape x in
+        Mat.to_array (if a < b then (assert (a=1); Mat.transpose x) else (assert (b=1); x))
+      ) m)
 
 
   (* for some reason, gnuplot wants a double "e" at the end
