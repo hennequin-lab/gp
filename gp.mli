@@ -19,19 +19,6 @@ module LaTeX : Output
 
 
 (* ----------------------------------------------------------------------------
-   --    Figure parameters                                                   --
-   ---------------------------------------------------------------------------- *)
-
-module type Parameters = sig
-  val gnuplot: string
-  val init: string
-  val to_file: string option
-end
-
-val default_init: string
-
-
-(* ----------------------------------------------------------------------------
    --    Main gnuplot types and module                                       --
    ---------------------------------------------------------------------------- *)
 
@@ -86,10 +73,7 @@ module type Figure = sig
 end
 
 
-(* main module *)
-module New_figure (O: Output) (P: Parameters) : Figure
-
-
+val default_init: string
 val figure: ?gnuplot:string -> ?init:string -> ?to_file:string -> (module Output) -> (module Figure)
 
 val quick : unit -> (module Figure)
