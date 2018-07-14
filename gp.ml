@@ -118,7 +118,8 @@ module type Figure = sig
   val set: ?o:string -> 'a property -> 'a -> unit
   val unset: 'a unset_property -> 'a -> unit
   val margins: [ `t of float | `b of float | `l of float | `r of float ] list -> unit
-  val multiplot: int -> int -> float -> float -> (int -> int -> int -> unit) -> unit
+  val multiplot: ?rect:((float*float)*(float*float)) -> ?spacing:(float * float) 
+    ->  int * int -> (int -> int -> int -> unit) -> unit
 end
 
 
@@ -273,20 +274,22 @@ module New_figure (O: Output) (P: Parameters) : Figure = struct
       | `l x -> ex (sprintf "set lmargin at screen %f" x)
       | `r x -> ex (sprintf "set rmargin at screen %f" x))
 
-  let multiplot rows cols vspace hspace plot_fun =
+  let multiplot ?(rect=((0.1, 0.1), (0.9,0.9))) ?(spacing=(0.04,0.04)) (rows, cols) plot_fun =
     ex (sprintf "set multiplot layout %i,%i" rows cols);
-    let hrem = 2. *. hspace *. float cols
-    and vrem = 2. *. vspace *. float rows in
-    let width = (1. -. hrem) /. float cols
-    and height = (1. -. vrem) /. float rows in
+    let (rx0, ry0), (rx1, ry1) = rect in
+    let rx0, rx1 = min rx0 rx1, max rx0 rx1 in
+    let ry0, ry1 = min ry0 ry1, max ry0 ry1 in
+    let total_width = rx1 -. rx0 in
+    let total_height = ry1 -. ry0 in
+    let sp_x, sp_y = spacing in
+    let h = (total_height -. float (rows-1) *. sp_y) /. float rows in
+    let w = (total_width -. float (cols-1) *. sp_x) /. float cols in
     for k=0 to rows*cols - 1 do 
       let row = k/cols and col = k mod cols in
-      let t = 1. -. hspace -. 2. *. hspace *. float row 
-              -. height *. float row in
-      let b = t -. height in
-      let l = 1. -. (1. -. vspace -. 2. *. vspace *. float col 
-                     -. width *. float col) in
-      let r = l +. width in
+      let t = ry1 -. float row *. (sp_y +. h) in
+      let b = t -. h in
+      let l = rx0 +. float col *. (sp_x +. w) in
+      let r = l +. w in
       margins [`t t; `b b; `l l; `r r];
       plot_fun k row col;
     done;

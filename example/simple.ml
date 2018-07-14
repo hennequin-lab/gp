@@ -1,4 +1,3 @@
-#require "gp";;
 open Owl
 open Gp
 
@@ -19,6 +18,7 @@ let my_plot (module F: Figure) =
   let y = Mat.uniform ~a:12. ~b:30. n_bins 1 in
   plot [| [x;y], "w lp pt 7 lc 8 lw 2" |];
   draw ()
+
 
 let _ = my_plot (quick ())
 let _ = my_plot (figure ~to_file:"simple_example" (module PNG))

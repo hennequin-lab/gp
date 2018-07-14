@@ -69,7 +69,8 @@ module type Figure = sig
   val set: ?o:string -> 'a property -> 'a -> unit
   val unset: 'a unset_property -> 'a -> unit
   val margins: [ `t of float | `b of float | `l of float | `r of float ] list -> unit
-  val multiplot: int -> int -> float -> float -> (int -> int -> int -> unit) -> unit
+  val multiplot: ?rect:((float*float)*(float*float)) -> ?spacing:(float * float) 
+    ->  int * int -> (int -> int -> int -> unit) -> unit
 end
 
 
