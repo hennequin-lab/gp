@@ -5,9 +5,11 @@ open Owl
    --    Output terminals                                                    --
    ---------------------------------------------------------------------------- *)
 
+type term = { term: string; font: string option; size: (int * int) option; other: string option }
+val opts_of : term -> string
+ 
 module type Output = sig
-  val term: string (* applied as is after `set terminal ...` *)
-  val term_opts: string list
+  val term: term
   val file_ext: string
   val post_action: (string -> unit) option (* possibly do something with the root filename after "draw" *)
 end

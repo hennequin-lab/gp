@@ -5,39 +5,47 @@ open Owl
    --    Output terminals                                                    --
    ---------------------------------------------------------------------------- *)
 
+type term = { term: string; font: string option; size: (int * int) option; other: string option }
+let opts_of z = 
+  let s = z.term in
+  let s = match z.other with Some x -> sprintf "%s %s" s x | None -> s in
+  let s = match z.font with Some x -> sprintf "%s font '%s'" s x | None -> s in
+  let s = match z.size with Some (x,y) -> sprintf "%s size %i,%i" s x y | None -> s in
+  s
+
 module type Output = sig
-  val term: string (* applied as is after `set terminal ...` *)
-  val term_opts: string list
+  val term: term
   val file_ext: string
   val post_action: (string -> unit) option (* possibly do something with the root filename after "draw" *)
 end
 
 module SVG : Output = struct
-  let term = "svg"
-  let term_opts = [ "font 'Helvetica,10'"; "size 600,400" ]
+  let term = { term = "svg"; font = Some "Helvetica,10"; size = Some (600,400); other = None }
   let file_ext = ".svg"
   let post_action = None
 end
 
 module PNG : Output = struct
-  let term = "pngcairo"
-  let term_opts = [ "enhanced"; "color"; "transparent"; "crop"; "font 'Helvetica,10'"; "size 600,400" ]
+  let term = { term = "pngcairo"; other = Some "enhanced color transparent crop";
+               font = Some "Helvetica,10"; size = Some (600,400) }
   let file_ext = ".png"
   let post_action = None
 end
 
 module QT : Output = struct
-  let term = "qt"
-  let term_opts = [ "enhanced"; "persist"; "raise"; "font 'Helvetica,10'"; "size 600,400" ]
+  let term = { term = "qt"; font = Some "Helvetica,10"; size = Some (600,400);
+               other = Some "enhanced persist raise" }
   let file_ext = "" (* irrelevant *)
   let post_action = None
 end
 
 module LaTeX : Output = struct
-  let term = "cairolatex"
-  let term_opts = [ "pdf"; "standalone"; "size 100cm, 100cm"; "dl 0.5";
-                    "header '\\usepackage[scaled=1]{helvet}\\usepackage{sfmath,xcolor}\
-                     \\renewcommand{\\familydefault}{\\sfdefault}'" ]
+  let term = { term = "cairolatex";
+               size = None;
+               font = None;
+               other = Some "pdf standalone size 100cm, 100cm dl 0.5 \
+                             header '\\usepackage[scaled=1]{helvet}\\usepackage{sfmath,xcolor}\
+                             \\renewcommand{\\familydefault}{\\sfdefault}'" }
   let file_ext = ".tex"
   let post_action = Some (fun root -> ignore (Sys.command (sprintf "gp2pdf %s.tex" root)))
 end
@@ -131,9 +139,7 @@ module New_figure (O: Output) (P: Parameters) : Figure = struct
   (* create a handle *)
   let h =
     let h = Unix.open_process_out P.gnuplot in
-    List.iter (fun opt ->
-        output_string h (sprintf "set term %s %s\n" O.term opt)
-      ) O.term_opts;
+    output_string h (sprintf "set term %s\n" (opts_of O.term));
     begin match P.to_file with 
       | Some r -> output_string h (sprintf "set output '%s%s'\n" r O.file_ext);
       | None -> ()
@@ -207,7 +213,7 @@ module New_figure (O: Output) (P: Parameters) : Figure = struct
     List.iter ex [
       sprintf "set xrange [%f:%f]" (-0.5) (float m -. 0.5);
       sprintf "set yrange [%f:%f] reverse" (-0.5) (float n -. 0.5);
-      "plot '-' mat w image"];
+      "plot '-' mat w image pixels"];
     send_matrix mat
 
   let load s = ex (sprintf "load '%s'" s)
