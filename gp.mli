@@ -70,6 +70,7 @@ module type Figure = sig
   val load: string -> unit
   val set: ?o:string -> 'a property -> 'a -> unit
   val unset: 'a unset_property -> 'a -> unit
+  val barebone: unit -> unit
   val margins: [ `t of float | `b of float | `l of float | `r of float ] list -> unit
   val multiplot: ?rect:((float*float)*(float*float)) -> ?spacing:(float * float) 
     ->  int * int -> (int -> int -> int -> unit) -> unit
@@ -78,6 +79,5 @@ end
 
 val default_init: string
 val figure: ?gnuplot:string -> ?init:string -> ?to_file:string -> (module Output) -> (module Figure)
-
-val quick : unit -> (module Figure)
+val quick : ?size:(int*int) -> ((module Figure) -> unit) -> unit
 

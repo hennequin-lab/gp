@@ -125,6 +125,7 @@ module type Figure = sig
   val load: string -> unit
   val set: ?o:string -> 'a property -> 'a -> unit
   val unset: 'a unset_property -> 'a -> unit
+  val barebone: unit -> unit
   val margins: [ `t of float | `b of float | `l of float | `r of float ] list -> unit
   val multiplot: ?rect:((float*float)*(float*float)) -> ?spacing:(float * float) 
     ->  int * int -> (int -> int -> int -> unit) -> unit
@@ -273,6 +274,11 @@ module New_figure (O: Output) (P: Parameters) : Figure = struct
     in
     ex cmd
 
+  let barebone () =  
+    unset Border ();
+    List.iter (unset Tics) [`x; `y];
+    unset Colorbox ()
+
 
   let margins = List.iter (function
       | `t x -> ex (sprintf "set tmargin at screen %f" x)
@@ -313,7 +319,16 @@ let figure ?(gnuplot="gnuplot") ?(init=default_init) ?to_file (module O: Output)
   let module F = New_figure (O) (P) in
   (module F: Figure)
 
-let quick () = figure (module QT)
-
+let quick ?(size=(600,400)) (f: (module Figure) -> unit) =
+  let module O : Output = struct
+    let term = { term = "qt"; font = Some "Helvetica,10"; size = Some size;
+                 other = Some "enhanced persist raise" }
+    let file_ext = "" (* irrelevant *)
+    let post_action = None
+  end in
+  let fig = figure (module O) in
+  let module F = (val fig: Figure) in
+  f (module F);
+  F.draw ()
 
 
