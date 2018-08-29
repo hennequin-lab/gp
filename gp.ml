@@ -26,7 +26,7 @@ module SVG : Output = struct
 end
 
 module PNG : Output = struct
-  let term = { term = "pngcairo"; other = Some "enhanced color transparent crop";
+  let term = { term = "pngcairo"; other = Some "enhanced color notransparent crop";
                font = Some "Helvetica,10"; size = Some (600,400) }
   let file_ext = ".png"
   let post_action = None
