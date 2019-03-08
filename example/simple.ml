@@ -20,7 +20,7 @@ let my_plot (module F: Figure) =
   draw ()
 
 
-let _ = my_plot (quick ())
+(* let _ = my_plot (quick ()) *)
 let _ = my_plot (figure ~to_file:"simple_example" (module PNG))
 let _ = my_plot (figure ~to_file:"simple_example" (module SVG))
 
