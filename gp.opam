@@ -1,0 +1,20 @@
+opam-version: "2.0"
+maintainer: "Guillaume Hennequin"
+authors: [ "Guillaume Hennequin" ]
+license: "MIT"
+homepage: "https://github.com/ghennequin/gp"
+dev-repo: "git+https://github.com/ghennequin/gp.git"
+bug-reports: "https://github.com/ghennequin/gp/issues"
+doc: "https://ghennequin.github.io/gp/"
+tags: [ "ODE" "scientific-computing"  ]
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+]
+depends: [
+  "ocaml" {>= "4.06.0"}
+  "dune" {build}
+  "base-unix"
+  "owl" {>= "0.4.0"}
+]
+synposis: "Gnuplot within OCaml and Owl"

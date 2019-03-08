@@ -1,5 +1,0 @@
-description = "Gnuplot within OCaml"
-version = "1"
-requires="unix,owl"
-archive(byte) = "gp.cmo"
-archive(native) = "gp.cmx"

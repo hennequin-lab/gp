@@ -1,6 +1,3 @@
-open Printf
-open Owl
-
 (* ----------------------------------------------------------------------------
    --    Output terminals                                                    --
    ---------------------------------------------------------------------------- *)
@@ -63,10 +60,10 @@ module type Figure = sig
   val h: out_channel
   val ex: string -> unit
   val draw: unit -> unit
-  val send_columns: Mat.mat array -> unit
-  val plot: (Mat.mat list * string) array -> unit
-  val splot: (Mat.mat * string) -> unit
-  val image: Mat.mat -> unit
+  val send_columns: Owl.Mat.mat array -> unit
+  val plot: (Owl.Mat.mat list * string) array -> unit
+  val splot: (Owl.Mat.mat * string) -> unit
+  val image: Owl.Mat.mat -> unit
   val load: string -> unit
   val set: ?o:string -> 'a property -> 'a -> unit
   val unset: 'a unset_property -> 'a -> unit
