@@ -47,7 +47,7 @@ module LaTeX : Output = struct
                              header '\\usepackage[scaled=1]{helvet}\\usepackage{sfmath,xcolor}\
                              \\renewcommand{\\familydefault}{\\sfdefault}'" }
   let file_ext = ".tex"
-  let post_action = Some (fun root -> ignore (Sys.command (sprintf "gp2pdf %s.tex" root)))
+  let post_action = Some (fun root -> ignore (Sys.command (sprintf "pdflatex %s.tex" root)))
 end
 
 
