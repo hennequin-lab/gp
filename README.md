@@ -9,7 +9,7 @@ let my_plot (module F: Figure) =
   F.draw ()
 
 (* then paint your figure with whatever output format you'd like *)
-let _ = my_plot (quick ()) (* QT interactive terminal *)
+let _ = quick my_plot (* QT interactive terminal *)
 let _ = my_plot (figure ~to_file:"test" (module PNG)) (* output to "test.png" *)
 let _ = my_plot (figure ~to_file:"test" (module SVG)) (* output to "test.svg" *)
 ```
@@ -39,7 +39,7 @@ let my_plot (module F: Figure) =
   plot [| [x;y], "w lp pt 7 lc 8 lw 2" |];
   draw ()
 
-let _ = my_plot (quick ())
+let _ = quick my_plot
 let _ = my_plot (figure ~to_file:"simple_example" (module PNG))
 let _ = my_plot (figure ~to_file:"simple_example" (module SVG))
 ```
