@@ -8,24 +8,27 @@ val opts_of : term -> string
 
 module type Output = sig
   val term : term
+
   val file_ext : string
+
   val post_action : (string -> unit) option
   (* possibly do something with the root filename after "draw" *)
 end
 
 module SVG : Output
-module PNG : Output
-module QT : Output
-module LaTeX : Output
-(* ----------------------------------------------------------------------------
-   --    Main gnuplot types and module                                       --
-   ---------------------------------------------------------------------------- *)
 
-(* properties to be set / unset *)
+module PNG : Output
+
+module QT : Output
+
+module LaTeX : Output
+
+(** {1 Main module} *)
 
 (** Type of axis you can use in various other commands *)
 type axis = [`x | `x2 | `y | `y2 | `z | `cb]
 
+(** Properties that can be set / unset *)
 type _ property =
   | Title : string property
   | Label : (axis * string) property
@@ -57,15 +60,27 @@ type _ unset_property =
 
 (** Contains all the commands you need to draw your figure *)
 module type Figure = sig
-  val h : out_channel
+
+  val h_out : out_channel
+
   val ex : string -> unit
+  (** Execute an arbitrary gnuplot command *)
+
   val draw : unit -> unit
+  (** Draw the figure. *)
+
   val send_columns : Owl.Mat.mat array -> unit
+
   val plot : (Owl.Mat.mat list * string) array -> unit
+
   val splot : Owl.Mat.mat * string -> unit
+
   val image : Owl.Mat.mat -> unit
+
   val load : string -> unit
+
   val set : ?o:string -> 'a property -> 'a -> unit
+
   val unset : 'a unset_property -> 'a -> unit
 
   val barebone : unit -> unit
@@ -73,6 +88,9 @@ module type Figure = sig
       no axes, no labels, no tics, nothing but your lovely plot *)
 
   val margins : [`t of float | `b of float | `l of float | `r of float] list -> unit
+  (** Set the position of your plot's top, bottom, left, and right borders to
+      desired positions in "screen coordinates", from (0,0) for bottom left to
+      (1,1) for top right. *)
 
   val multiplot :
        ?rect:(float * float) * (float * float)

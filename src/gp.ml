@@ -16,14 +16,18 @@ let opts_of z =
 
 module type Output = sig
   val term : term
+
   val file_ext : string
+
   val post_action : (string -> unit) option
   (* possibly do something with the root filename after "draw" *)
 end
 
 module SVG : Output = struct
   let term = {term= "svg"; font= Some "Helvetica,10"; size= Some (600, 400); other= None}
+
   let file_ext = ".svg"
+
   let post_action = None
 end
 
@@ -35,6 +39,7 @@ module PNG : Output = struct
     ; size= Some (600, 400) }
 
   let file_ext = ".png"
+
   let post_action = None
 end
 
@@ -63,6 +68,7 @@ module LaTeX : Output = struct
     }
 
   let file_ext = ".tex"
+
   let post_action = Some (fun root -> ignore (Sys.command (sprintf "pdflatex %s.tex" root)))
 end
 
@@ -72,7 +78,9 @@ end
 
 module type Parameters = sig
   val gnuplot : string
+
   val init : string
+
   val to_file : string option
 end
 
@@ -125,15 +133,24 @@ type _ unset_property =
 
 (** Contains all the commands you need to draw your figure *)
 module type Figure = sig
-  val h : out_channel
+  val h_out : out_channel
+
   val ex : string -> unit
+
   val draw : unit -> unit
+
   val send_columns : Mat.mat array -> unit
+
   val plot : (Mat.mat list * string) array -> unit
+
   val splot : Mat.mat * string -> unit
+
   val image : Mat.mat -> unit
+
   val load : string -> unit
+
   val set : ?o:string -> 'a property -> 'a -> unit
+
   val unset : 'a unset_property -> 'a -> unit
 
   val barebone : unit -> unit
@@ -154,21 +171,26 @@ end
 (* main module *)
 module New_figure (O : Output) (P : Parameters) : Figure = struct
   (* create a handle *)
-  let h =
-    let h = Unix.open_process_out P.gnuplot in
-    output_string h (sprintf "set term %s\n" (opts_of O.term)) ;
+  let h_out =
+    let h_out = Unix.open_process_out P.gnuplot in
+    output_string h_out (sprintf "set term %s\n" (opts_of O.term)) ;
     ( match P.to_file with
-    | Some r -> output_string h (sprintf "set output '%s%s'\n" r O.file_ext)
-    | None -> () ) ;
-    output_string h (P.init ^ "\n") ;
-    h
+    | Some r -> output_string h_out (sprintf "set output '%s%s'\n" r O.file_ext)
+    | None -> output_string h_out "set output\n" ) ;
+    output_string h_out (P.init ^ "\n") ;
+    flush h_out ;
+    h_out
 
   (* hack to make sure that gnuplot terminates if the handle is lost *)
   let a = ref 0
-  let _ = Gc.finalise (fun _ -> try ignore (Unix.close_process_out h) with _ -> ()) a
-  let ex cmd = output_string h (cmd ^ "\n")
-  let flush () = flush h
-  let close () = ignore (Unix.close_process_out h)
+
+  let _ = Gc.finalise (fun _ -> try ignore (Unix.close_process_out h_out) with _ -> ()) a
+
+  let ex cmd = output_string h_out (cmd ^ "\n")
+
+  let flush () = flush h_out
+
+  let close () = ignore (Unix.close_process_out h_out)
 
   let draw () =
     ex "unset multiplot" ;
@@ -178,7 +200,7 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
     close () ;
     match (O.post_action, P.to_file) with Some f, Some r -> f r | _ -> ()
 
-  let end_signal () = fprintf h "e\n%!"
+  let end_signal () = fprintf h_out "e\n%!"
 
   let __send_columns m =
     let cols = Array.length m in
@@ -186,9 +208,9 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
     for i = 0 to rows - 1 do
       for j = 0 to cols - 1 do
         let mj = m.(j) in
-        if i < Array.length mj then fprintf h "%f " mj.(i) else fprintf h "- "
+        if i < Array.length mj then fprintf h_out "%f " mj.(i) else fprintf h_out "- "
       done ;
-      fprintf h "\n%!"
+      fprintf h_out "\n%!"
     done ;
     end_signal ()
 
@@ -335,7 +357,9 @@ end
 let figure ?(gnuplot = "gnuplot") ?(init = default_init) ?to_file (module O : Output) =
   let module P = struct
     let gnuplot = gnuplot
+
     let init = init
+
     let to_file = to_file
   end in
   let module F = New_figure (O) (P) in
