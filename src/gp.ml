@@ -1,6 +1,8 @@
 open Printf
 open Owl
 
+let _ = Printexc.record_backtrace true
+
 (* ----------------------------------------------------------------------------
    --    Output terminals                                                    --
    ---------------------------------------------------------------------------- *)
@@ -16,39 +18,35 @@ let opts_of z =
 
 module type Output = sig
   val term : term
-
   val file_ext : string
-
   val post_action : (string -> unit) option
+
   (* possibly do something with the root filename after "draw" *)
 end
 
 module SVG : Output = struct
-  let term = {term= "svg"; font= Some "Helvetica,10"; size= Some (600, 400); other= None}
-
+  let term = {term= "svg"; font= Some "Helvetica,12"; size= Some (600, 400); other= None}
   let file_ext = ".svg"
-
   let post_action = None
 end
 
 module PNG : Output = struct
   let term =
-    { term= "pngcairo"
-    ; other= Some "enhanced color notransparent crop"
-    ; font= Some "Helvetica,10"
-    ; size= Some (600, 400) }
+    { term= "pngcairo";
+      other= Some "enhanced color notransparent crop";
+      font= Some "Helvetica,10";
+      size= Some (600, 400) }
 
   let file_ext = ".png"
-
   let post_action = None
 end
 
 module QT : Output = struct
   let term =
-    { term= "qt"
-    ; font= Some "Helvetica,10"
-    ; size= Some (600, 400)
-    ; other= Some "enhanced persist raise" }
+    { term= "qt";
+      font= Some "Helvetica,10";
+      size= Some (600, 400);
+      other= Some "enhanced persist raise" }
 
   let file_ext = ""
 
@@ -58,17 +56,16 @@ end
 
 module LaTeX : Output = struct
   let term =
-    { term= "cairolatex"
-    ; size= None
-    ; font= None
-    ; other=
+    { term= "cairolatex";
+      size= None;
+      font= None;
+      other=
         Some
           "pdf standalone size 100cm, 100cm dl 0.5 header \
            '\\usepackage[scaled=1]{helvet}\\usepackage{sfmath,xcolor}\\renewcommand{\\familydefault}{\\sfdefault}'"
     }
 
   let file_ext = ".tex"
-
   let post_action = Some (fun root -> ignore (Sys.command (sprintf "pdflatex %s.tex" root)))
 end
 
@@ -78,9 +75,7 @@ end
 
 module type Parameters = sig
   val gnuplot : string
-
   val init : string
-
   val to_file : string option
 end
 
@@ -95,12 +90,18 @@ let default_init = "set key noautotitle; set border 3; set tics out nomirror"
 type axis = [`x | `x2 | `y | `y2 | `z | `cb]
 
 let string_of_axis = function
-  | `x -> "x"
-  | `x2 -> "x2"
-  | `y -> "y"
-  | `y2 -> "y2"
-  | `z -> "z"
-  | `cb -> "cb"
+  | `x ->
+      "x"
+  | `x2 ->
+      "x2"
+  | `y ->
+      "y"
+  | `y2 ->
+      "y2"
+  | `z ->
+      "z"
+  | `cb ->
+      "cb"
 
 type _ property =
   | Title : string property
@@ -131,41 +132,32 @@ type _ unset_property =
   | Multiplot : unit unset_property
   | Prop : string unset_property
 
+type data = A of Mat.mat | L of Mat.mat list | F of (float -> float)
+
 (** Contains all the commands you need to draw your figure *)
 module type Figure = sig
   val h_out : out_channel
-
   val ex : string -> unit
-
   val draw : unit -> unit
-
-  val send_columns : Mat.mat array -> unit
-
-  val plot : (Mat.mat list * string) array -> unit
-
-  val splot : Mat.mat * string -> unit
-
-  val image : Mat.mat -> unit
-
+  val plot : (data * string) list -> unit
+  val splot : (data * string) list -> unit
+  val heatmap : Mat.mat -> unit
   val load : string -> unit
-
   val set : ?o:string -> 'a property -> 'a -> unit
-
   val unset : 'a unset_property -> 'a -> unit
 
   val barebone : unit -> unit
-  (** Trim the plot to the bare minimum: 
-      no axes, no labels, no tics, nothing but your lovely plot *)
+  (** Trim the plot to the bare minimum: no axes, no labels, no tics, nothing but your lovely plot *)
 
   val margins : [`t of float | `b of float | `l of float | `r of float] list -> unit
   (** Set the plot margins in screen coordinates; (0,0) = bottom left, (1,1) = top right *)
 
   val multiplot :
-       ?rect:(float * float) * (float * float)
-    -> ?spacing:float * float
-    -> int * int
-    -> (int -> int -> int -> unit)
-    -> unit
+    ?rect:(float * float) * (float * float) ->
+    ?spacing:float * float ->
+    int * int ->
+    (int -> int -> int -> unit) ->
+    unit
 end
 
 (* main module *)
@@ -175,22 +167,23 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
     let h_out = Unix.open_process_out P.gnuplot in
     output_string h_out (sprintf "set term %s\n" (opts_of O.term)) ;
     ( match P.to_file with
-    | Some r -> output_string h_out (sprintf "set output '%s%s'\n" r O.file_ext)
-    | None -> output_string h_out "set output\n" ) ;
+    | Some r ->
+        output_string h_out (sprintf "set output '%s%s'\n" r O.file_ext)
+    | None ->
+        output_string h_out "set output\n" ) ;
     output_string h_out (P.init ^ "\n") ;
     flush h_out ;
     h_out
 
   (* hack to make sure that gnuplot terminates if the handle is lost *)
   let a = ref 0
-
   let _ = Gc.finalise (fun _ -> try ignore (Unix.close_process_out h_out) with _ -> ()) a
-
   let ex cmd = output_string h_out (cmd ^ "\n")
-
   let flush () = flush h_out
 
-  let close () = ignore (Unix.close_process_out h_out)
+  let close () =
+    Pervasives.flush h_out ;
+    ignore (Unix.close_process_out h_out)
 
   let draw () =
     ex "unset multiplot" ;
@@ -198,72 +191,63 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
     ex "unset output" ;
     flush () ;
     close () ;
-    match (O.post_action, P.to_file) with Some f, Some r -> f r | _ -> ()
+    (match (O.post_action, P.to_file) with Some f, Some r -> f r | _ -> ()) ;
+    Sys.command "rm -f /dev/shm/ocaml_gnuplot_*" |> ignore
 
-  let end_signal () = fprintf h_out "e\n%!"
+  let write_arr x =
+    let filename = Filename.temp_file ~temp_dir:"/dev/shm" "ocaml_gnuplot_" "" in
+    let file = Unix.(openfile filename [O_RDWR; O_CREAT; O_TRUNC] 0o666) in
+    let x_mem =
+      Unix.map_file file Bigarray.Float64 Bigarray.c_layout true [|Mat.row_num x; Mat.col_num x|]
+    in
+    Bigarray.Genarray.blit x x_mem ; Unix.close file ; filename
 
-  let __send_columns m =
-    let cols = Array.length m in
-    let rows = Array.fold_left max (-1) (Array.map Array.length m) in
-    for i = 0 to rows - 1 do
-      for j = 0 to cols - 1 do
-        let mj = m.(j) in
-        if i < Array.length mj then fprintf h_out "%f " mj.(i) else fprintf h_out "- "
-      done ;
-      fprintf h_out "\n%!"
-    done ;
-    end_signal ()
+  let perhaps_transpose x = if Mat.row_num x = 1 then Mat.transpose x else x
 
-  let send_columns m =
-    __send_columns
-      (Array.map
-         (fun x ->
-           let a, b = Mat.shape x in
-           Mat.to_array
-             ( if a < b then (
-               assert (a = 1) ;
-               Mat.transpose x )
-             else (
-               assert (b = 1) ;
-               x ) ) )
-         m)
+  let rec write_binary_data = function
+    | F _ ->
+        assert false
+    | L xl ->
+        let x =
+          try Mat.concatenate ~axis:1 Array.(map perhaps_transpose (of_list xl))
+          with _ -> failwith "plot: vectors must have the same length"
+        in
+        write_binary_data (A x)
+    | A x ->
+        let filename = write_arr x in
+        let file_opt = Array.make Mat.(col_num x) "%double" |> Array.to_list |> String.concat "" in
+        let file_opt = sprintf "'%s' binary format='%s'" filename file_opt in
+        (filename, file_opt)
 
-  (* for some reason, gnuplot wants a double "e" at the end
-     of the stream for matrix data given to [splot()] ... *)
+  let _plot plot_cmd data =
+    let data =
+      List.map
+        (fun (x, opts) ->
+          let _, f = write_binary_data x in
+          sprintf "%s %s" f opts )
+        data
+    in
+    ex (plot_cmd ^ String.concat ", " data)
 
-  let send_matrix m =
-    send_columns (Mat.to_cols m) ;
-    end_signal ()
+  let plot = _plot "plot"
+  let splot = _plot "splot"
 
-  let plot data =
-    let cmds = Array.map (fun (_, opts) -> sprintf "'-' %s" opts) data |> Array.to_list in
-    ex ("plot " ^ String.concat ", " cmds) ;
-    Array.iter (fun (d, _) -> send_columns (Array.of_list d)) data
-
-  let splot data =
-    let mat, opts = data in
-    ex "set pm3d map" ;
+  let heatmap mat =
     let n, m = Mat.shape mat in
+    let filename, _ = write_binary_data (A mat) in
     List.iter ex
-      [ sprintf "set xrange [%f:%f]" (-0.5) (float n -. 0.5)
-      ; sprintf "set yrange [%f:%f] reverse" (-0.5) (float m -. 0.5)
-      ; sprintf "splot '-' %s" opts ] ;
-    send_matrix mat
-
-  let image mat =
-    let n, m = Mat.shape mat in
-    List.iter ex
-      [ sprintf "set xrange [%f:%f]" (-0.5) (float m -. 0.5)
-      ; sprintf "set yrange [%f:%f] reverse" (-0.5) (float n -. 0.5)
-      ; "plot '-' mat w image pixels" ] ;
-    send_matrix mat
+      [ sprintf "set xrange [%f:%f]" (-0.5) (float m -. 0.5);
+        sprintf "set yrange [%f:%f] reverse" (-0.5) (float n -. 0.5);
+        sprintf "plot '%s' binary format='%s' array=(%i,%i) w image pixels" filename "%double" m n
+      ]
 
   let load s = ex (sprintf "load '%s'" s)
 
   let set (type a) ?o (prop : a property) (x : a) =
     let cmd =
       match prop with
-      | Title -> sprintf "set title '%s'" x
+      | Title ->
+          sprintf "set title '%s'" x
       | Label ->
           let ax, lbl = x in
           sprintf "set %slabel '%s'" (string_of_axis ax) lbl
@@ -277,14 +261,19 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
             | `list s ->
                 let z = String.concat ", " (List.map (fun (x, la) -> sprintf "'%s' %f" la x) s) in
                 sprintf "( %s )" z
-            | `def (a0, step, a1) -> sprintf "%f, %f, %f" a0 step a1 )
-      | Key -> sprintf "set key %s" x
-      | Palette -> sprintf "set palette %s" x
+            | `def (a0, step, a1) ->
+                sprintf "%f, %f, %f" a0 step a1 )
+      | Key ->
+          sprintf "set key %s" x
+      | Palette ->
+          sprintf "set palette %s" x
       | Format ->
           let ax, fmt = x in
           sprintf "set format %s %s" (string_of_axis ax) fmt
-      | Autoscale -> sprintf "set autoscale %s" (string_of_axis x)
-      | Logscale -> sprintf "set logscale %s" (string_of_axis x)
+      | Autoscale ->
+          sprintf "set autoscale %s" (string_of_axis x)
+      | Logscale ->
+          sprintf "set logscale %s" (string_of_axis x)
       | Text ->
           let id, lbl = x in
           sprintf "set label %i %s" id lbl
@@ -295,9 +284,12 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
               0 x
           in
           sprintf "set border %i" total
-      | Colorbox -> sprintf "set colorbox %s" x
-      | Multiplot -> "set multiplot"
-      | Prop -> sprintf "set %s" x
+      | Colorbox ->
+          sprintf "set colorbox %s" x
+      | Multiplot ->
+          "set multiplot"
+      | Prop ->
+          sprintf "set %s" x
     in
     let cmd = match o with Some o -> sprintf "%s %s" cmd o | None -> cmd in
     ex cmd
@@ -305,17 +297,28 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
   let unset (type a) (prop : a unset_property) (x : a) =
     let cmd =
       match prop with
-      | Title -> "unset title"
-      | Label -> sprintf "unset %slabel" (string_of_axis x)
-      | Tics -> sprintf "unset %stics" (string_of_axis x)
-      | Key -> "unset key"
-      | Autoscale -> sprintf "unset autoscale %s" (string_of_axis x)
-      | Logscale -> sprintf "unset logscale %s" (string_of_axis x)
-      | Text -> sprintf "unset label %i" x
-      | Border -> "unset border"
-      | Colorbox -> "unset colorbox"
-      | Multiplot -> "unset multiplot"
-      | Prop -> sprintf "unset %s" x
+      | Title ->
+          "unset title"
+      | Label ->
+          sprintf "unset %slabel" (string_of_axis x)
+      | Tics ->
+          sprintf "unset %stics" (string_of_axis x)
+      | Key ->
+          "unset key"
+      | Autoscale ->
+          sprintf "unset autoscale %s" (string_of_axis x)
+      | Logscale ->
+          sprintf "unset logscale %s" (string_of_axis x)
+      | Text ->
+          sprintf "unset label %i" x
+      | Border ->
+          "unset border"
+      | Colorbox ->
+          "unset colorbox"
+      | Multiplot ->
+          "unset multiplot"
+      | Prop ->
+          sprintf "unset %s" x
     in
     ex cmd
 
@@ -326,10 +329,14 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
 
   let margins =
     List.iter (function
-      | `t x -> ex (sprintf "set tmargin at screen %f" x)
-      | `b x -> ex (sprintf "set bmargin at screen %f" x)
-      | `l x -> ex (sprintf "set lmargin at screen %f" x)
-      | `r x -> ex (sprintf "set rmargin at screen %f" x) )
+      | `t x ->
+          ex (sprintf "set tmargin at screen %f" x)
+      | `b x ->
+          ex (sprintf "set bmargin at screen %f" x)
+      | `l x ->
+          ex (sprintf "set lmargin at screen %f" x)
+      | `r x ->
+          ex (sprintf "set rmargin at screen %f" x) )
 
   let multiplot ?(rect = ((0.1, 0.1), (0.9, 0.9))) ?(spacing = (0.04, 0.04)) (rows, cols) plot_fun
       =
@@ -354,12 +361,14 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
     ex "unset multiplot"
 end
 
+let plot (module Canvas : Figure) fig =
+  fig (module Canvas : Figure) ;
+  Canvas.draw ()
+
 let figure ?(gnuplot = "gnuplot") ?(init = default_init) ?to_file (module O : Output) =
   let module P = struct
     let gnuplot = gnuplot
-
     let init = init
-
     let to_file = to_file
   end in
   let module F = New_figure (O) (P) in

@@ -2,6 +2,8 @@
    --    Output terminals                                                    --
    ---------------------------------------------------------------------------- *)
 
+open Owl
+
 type term = {term: string; font: string option; size: (int * int) option; other: string option}
 
 val opts_of : term -> string
@@ -58,6 +60,8 @@ type _ unset_property =
   | Multiplot : unit unset_property
   | Prop : string unset_property
 
+type data = A of Mat.mat | L of Mat.mat list | F of (float -> float)
+
 (** Contains all the commands you need to draw your figure *)
 module type Figure = sig
 
@@ -69,13 +73,11 @@ module type Figure = sig
   val draw : unit -> unit
   (** Draw the figure. *)
 
-  val send_columns : Owl.Mat.mat array -> unit
+  val plot : (data * string) list -> unit
+  
+  val splot : (data * string) list -> unit
 
-  val plot : (Owl.Mat.mat list * string) array -> unit
-
-  val splot : Owl.Mat.mat * string -> unit
-
-  val image : Owl.Mat.mat -> unit
+  val heatmap : Mat.mat -> unit
 
   val load : string -> unit
 
@@ -101,6 +103,8 @@ module type Figure = sig
 end
 
 val default_init : string
+
+val plot: (module Figure) -> ((module Figure) -> unit) -> unit 
 
 val figure :
   ?gnuplot:string -> ?init:string -> ?to_file:string -> (module Output) -> (module Figure)
