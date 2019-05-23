@@ -35,7 +35,7 @@ let my_plot (module F: Figure) =
   let n_bins = (int_of_float (y1 -. y0)) in
   let x = Mat.linspace y0 y1 n_bins in
   let y = Mat.uniform ~a:12. ~b:30. n_bins 1 in
-  plot [| [x;y], "w lp pt 7 lc 8 lw 2" |]
+  plot [ L [x;y], "w lp pt 7 lc 8 lw 2" ]
 
 let _ = my_plot |> quick (* opens a QT window *)
 let _ = my_plot |> plot (figure ~to_file:"simple_example" (module PNG))
