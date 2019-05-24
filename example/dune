@@ -1,5 +1,5 @@
-(executable
- (name simple)
+(executables
+ (names simple surf)
  (libraries gp owl))
 
 (alias

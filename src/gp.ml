@@ -1,8 +1,6 @@
 open Printf
 open Owl
 
-let _ = Printexc.record_backtrace true
-
 (* ----------------------------------------------------------------------------
    --    Output terminals                                                    --
    ---------------------------------------------------------------------------- *)
@@ -138,7 +136,7 @@ type data = A of Mat.mat | L of Mat.mat list | F of (float -> float)
 module type Figure = sig
   val h_out : out_channel
   val ex : string -> unit
-  val draw : unit -> unit
+  val draw : ?pause:string -> unit -> unit
   val plot : (data * string) list -> unit
   val splot : (data * string) list -> unit
   val heatmap : Mat.mat -> unit
@@ -185,10 +183,11 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
     Pervasives.flush h_out ;
     ignore (Unix.close_process_out h_out)
 
-  let draw () =
+  let draw ?pause () =
     ex "unset multiplot" ;
     (* just in case -- that doesn't hurt *)
     ex "unset output" ;
+    begin match pause with Some p -> ex p | None -> () end;
     flush () ;
     close () ;
     (match (O.post_action, P.to_file) with Some f, Some r -> f r | _ -> ()) ;
@@ -387,4 +386,4 @@ let quick ?(size = (600, 400)) (f : (module Figure) -> unit) =
   let fig = figure (module O) in
   let module F = (val fig : Figure) in
   f (module F) ;
-  F.draw ()
+  F.draw ~pause:"pause mouse close" ()

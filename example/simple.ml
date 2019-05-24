@@ -24,4 +24,6 @@ let my_plot2 (module F : Figure) =
   heatmap x
 
 let _ = my_plot1 |> quick
-let _ = my_plot2 |> plot (figure ~to_file:"simple_example" (module PNG))
+(* let _ = my_plot2 |> plot (figure ~to_file:"simple_example" (module PNG)) *)
+
+

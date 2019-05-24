@@ -70,7 +70,7 @@ module type Figure = sig
   val ex : string -> unit
   (** Execute an arbitrary gnuplot command *)
 
-  val draw : unit -> unit
+  val draw : ?pause:string -> unit -> unit
   (** Draw the figure. *)
 
   val plot : (data * string) list -> unit
