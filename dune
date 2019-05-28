@@ -1,4 +1,6 @@
 (alias
-  (name doc_install)
-  (deps (alias doc))
-  (action (system "rm -rf ../../docs/*; cp -rf _doc/_html/* ../../docs/")))
+ (name doc_install)
+ (deps
+  (alias doc))
+ (action
+  (system "rm -rf ../../docs/*; cp -rf _doc/_html/* ../../docs/")))
