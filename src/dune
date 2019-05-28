@@ -1,3 +1,4 @@
 (library
- (public_name gp)
+ (name gp)
+ (public_name hlab-gp)
  (libraries owl unix))

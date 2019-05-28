@@ -1,11 +1,11 @@
 opam-version: "2.0"
-maintainer: "Guillaume Hennequin"
-authors: [ "Guillaume Hennequin" ]
+maintainer: "Hennequin Lab"
+authors: [ "Hennequin Lab" ]
 license: "MIT"
-homepage: "https://github.com/ghennequin/gp"
-dev-repo: "git+https://github.com/ghennequin/gp.git"
-bug-reports: "https://github.com/ghennequin/gp/issues"
-doc: "https://ghennequin.github.io/gp/"
+homepage: "https://github.com/hennequin-lab/gp"
+dev-repo: "git+https://github.com/hennequin-lab/gp.git"
+bug-reports: "https://github.com/hennequin-lab/gp/issues"
+doc: "https://hennequin-lab.github.io/gp/"
 build: [
   ["dune" "build" "-p" name "-j" jobs]
   ["dune" "runtest" "-p" name "-j" jobs] {with-test}
