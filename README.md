@@ -1,5 +1,7 @@
 # Basic usage
 
+Please see the [API documentation](https://hennequin-lab.github.io/gp).
+
 ```ocaml
 open Gp
 
@@ -7,7 +9,7 @@ open Gp
 let my_plot (module F: Figure) =
   F.ex "plot sin(x) w l lc 8 lw 3"
 
-(* then paint your figure with whatever output format you'd like *)
+(* then paint your figure with an output format of your choice *)
 let _ = my_plot |> quick (* QT interactive terminal *)
 let _ = my_plot |> plot (figure ~to_file:"test" (module PNG)) (* output to "test.png" *)
 let _ = my_plot |> plot (figure ~to_file:"test" (module SVG)) (* output to "test.svg" *)
