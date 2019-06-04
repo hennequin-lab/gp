@@ -16,7 +16,7 @@ let prms
   let tmp_root =
     match tmp_root with
     | Some r -> r
-    | None -> if Sys.is_directory "/dev/shm" then "/dev/shm" else "tmp"
+    | None -> if Sys.is_directory "/dev/shm" then "/dev/shm" else "/tmp"
   in
   { tmp_root; gnuplot; init }
 
@@ -74,7 +74,7 @@ let svg ?(font = "Helvetica,12") ?(size = 600, 400) ?other_term_opts file_name =
 let png
     ?(font = "Helvetica,10")
     ?(size = 600, 400)
-    ?(other_term_opts = "enhanced color notransparent crop")
+    ?(other_term_opts = "enhanced color transparent crop")
     file_name
   =
   { term =
@@ -439,12 +439,6 @@ let draw ?(prms = default_prms) ~output (fig : (module Figure) -> unit) =
     flush h_out;
     h_out
   in
-  (* hack to make sure that gnuplot terminates if the handle is lost *)
-  Gc.finalise
-    (fun _ ->
-      try ignore (Unix.close_process_out h_out) with
-      | _ -> ())
-    h_out;
   (* create the main figure module *)
   let module F = Make (struct
     let h_out = h_out
