@@ -1,4 +1,4 @@
 (library
  (name gp)
  (public_name gp)
- (libraries owl unix))
+ (libraries owl unix fpath))

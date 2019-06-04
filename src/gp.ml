@@ -1,9 +1,27 @@
 open Printf
 open Owl
 
-(* ---------------------------------------------------------------------------- -- Output
-   terminals --
-   ---------------------------------------------------------------------------- *)
+type prms =
+  { tmp_root : string
+  ; gnuplot : string
+  ; init : string
+  }
+
+let prms
+    ?tmp_root
+    ?(gnuplot = "gnuplot")
+    ?(init = "set key noautotitle; set border 3; set tics out nomirror")
+    ()
+  =
+  let tmp_root =
+    match tmp_root with
+    | Some r -> r
+    | None -> if Sys.is_directory "/dev/shm" then "/dev/shm" else "tmp"
+  in
+  { tmp_root; gnuplot; init }
+
+
+let default_prms = prms ()
 
 type term =
   { term : string
@@ -32,86 +50,75 @@ let opts_of z =
   s
 
 
-module type Output = sig
-  val term : term
-  val file_ext : string
-  val post_action : (string -> unit) option
-
-  (* possibly do something with the root filename after "draw" *)
-end
-
-module SVG : Output = struct
-  let term =
-    { term = "svg"; font = Some "Helvetica,12"; size = Some (600, 400); other = None }
+let ensure_ext ext name =
+  let name = Fpath.(v name) in
+  (if Fpath.has_ext ext name then name else Fpath.add_ext ext name) |> Fpath.to_string
 
 
-  let file_ext = ".svg"
-  let post_action = None
-end
+type output =
+  { term : term
+  ; file : string option
+  ; pause : string option
+  ; (* possibly do something with the root filename after "draw" *)
+    post_action : (string -> unit) option
+  }
 
-module PNG : Output = struct
-  let term =
-    { term = "pngcairo"
-    ; other = Some "enhanced color notransparent crop"
-    ; font = Some "Helvetica,10"
-    ; size = Some (600, 400)
-    }
-
-
-  let file_ext = ".png"
-  let post_action = None
-end
-
-module QT : Output = struct
-  let term =
-    { term = "qt"
-    ; font = Some "Helvetica,10"
-    ; size = Some (600, 400)
-    ; other = Some "enhanced persist raise"
-    }
+let svg ?(font = "Helvetica,12") ?(size = 600, 400) ?other_term_opts file_name =
+  { term = { term = "svg"; font = Some font; size = Some size; other = other_term_opts }
+  ; file = Some (ensure_ext "svg" file_name)
+  ; pause = None
+  ; post_action = None
+  }
 
 
-  let file_ext = ""
+let png
+    ?(font = "Helvetica,10")
+    ?(size = 600, 400)
+    ?(other_term_opts = "enhanced color notransparent crop")
+    file_name
+  =
+  { term =
+      { term = "pngcairo"
+      ; other = Some other_term_opts
+      ; font = Some font
+      ; size = Some size
+      }
+  ; file = Some (ensure_ext "png" file_name)
+  ; pause = None
+  ; post_action = None
+  }
 
-  (* irrelevant *)
-  let post_action = None
-end
 
-module LaTeX : Output = struct
-  let term =
-    { term = "cairolatex"
-    ; size = None
-    ; font = None
-    ; other =
-        Some
-          "pdf standalone size 100cm, 100cm dl 0.5 header \
-           '\\usepackage[scaled=1]{helvet}\\usepackage{sfmath,xcolor}\\renewcommand{\\familydefault}{\\sfdefault}'"
-    }
+let qt
+    ?(font = "Helvetica,10")
+    ?(size = 600, 400)
+    ?(other_term_opts = "enhanced persist raise")
+    ?pause
+    ()
+  =
+  { term =
+      { term = "qt"; font = Some font; size = Some size; other = Some other_term_opts }
+  ; file = None
+  ; pause
+  ; post_action = None
+  }
 
 
-  let file_ext = ".tex"
+let latex_default_opts =
+  {| 
+    pdf standalone size 100cm, 100cm dl 0.5 header \
+    '\usepackage[scaled=1]{helvet} \
+     \usepackage{sfmath, xcolor} \
+     \renewcommand{\familydefault}{\sfdefault}' |}
 
-  let post_action =
-    Some (fun root -> ignore (Sys.command (sprintf "pdflatex %s.tex" root)))
-end
 
-(* ---------------------------------------------------------------------------- -- Figure
-   parameters --
-   ---------------------------------------------------------------------------- *)
+let latex ?(term_opts = latex_default_opts) file_name =
+  { term = { term = "cairolatex"; size = None; font = None; other = Some term_opts }
+  ; file = Some (ensure_ext "tex" file_name)
+  ; pause = None
+  ; post_action = Some (fun root -> ignore (Sys.command (sprintf "pdflatex %s.tex" root)))
+  }
 
-module type Parameters = sig
-  val gnuplot : string
-  val init : string
-  val to_file : string option
-end
-
-let default_init = "set key noautotitle; set border 3; set tics out nomirror"
-
-(* ---------------------------------------------------------------------------- -- Main
-   gnuplot types and module --
-   ---------------------------------------------------------------------------- *)
-
-(* properties to be set / unset *)
 
 type axis =
   [ `x
@@ -169,9 +176,7 @@ type data =
 
 (** Contains all the commands you need to draw your figure *)
 module type Figure = sig
-  val h_out : out_channel
   val ex : string -> unit
-  val draw : ?pause:string -> unit -> unit
   val plot : (data * string) list -> unit
   val splot : (data * string) list -> unit
   val heatmap : Mat.mat -> unit
@@ -194,56 +199,17 @@ module type Figure = sig
     -> unit
 end
 
-(* main module *)
-module New_figure (O : Output) (P : Parameters) : Figure = struct
-  (* create a handle *)
-  let h_out =
-    let h_out = Unix.open_process_out P.gnuplot in
-    output_string h_out (sprintf "set term %s\n" (opts_of O.term));
-    (match P.to_file with
-    | Some r -> output_string h_out (sprintf "set output '%s%s'\n" r O.file_ext)
-    | None -> output_string h_out "set output\n");
-    output_string h_out (P.init ^ "\n");
-    flush h_out;
-    h_out
-
-
-  (* hack to make sure that gnuplot terminates if the handle is lost *)
-  let a = ref 0
-
-  let _ =
-    Gc.finalise
-      (fun _ ->
-        try ignore (Unix.close_process_out h_out) with
-        | _ -> ())
-      a
-
+module Make (P : sig
+  val h_out : out_channel
+  val prms : prms
+end) =
+struct
+  open P
 
   let ex cmd = output_string h_out (cmd ^ "\n")
-  let flush () = flush h_out
-
-  let close () =
-    Pervasives.flush h_out;
-    ignore (Unix.close_process_out h_out)
-
-
-  let draw ?pause () =
-    ex "unset multiplot";
-    (* just in case -- that doesn't hurt *)
-    ex "unset output";
-    (match pause with
-    | Some p -> ex p
-    | None -> ());
-    flush ();
-    close ();
-    (match O.post_action, P.to_file with
-    | Some f, Some r -> f r
-    | _ -> ());
-    Sys.command "rm -f /dev/shm/ocaml_gnuplot_*" |> ignore
-
 
   let write_arr x =
-    let filename = Filename.temp_file ~temp_dir:"/dev/shm" "ocaml_gnuplot_" "" in
+    let filename = Filename.temp_file ~temp_dir:prms.tmp_root "ocaml_gnuplot_" "" in
     let file = Unix.(openfile filename [ O_RDWR; O_CREAT; O_TRUNC ] 0o666) in
     let x_mem =
       Unix.map_file
@@ -425,39 +391,44 @@ module New_figure (O : Output) (P : Parameters) : Figure = struct
     ex "unset multiplot"
 end
 
-let plot (module Canvas : Figure) fig =
-  fig (module Canvas : Figure);
-  Canvas.draw ()
-
-
-let figure ?(gnuplot = "gnuplot") ?(init = default_init) ?to_file (module O : Output) =
-  let module P = struct
-    let gnuplot = gnuplot
-    let init = init
-    let to_file = to_file
-  end
+let draw ?(prms = default_prms) ~output (fig : (module Figure) -> unit) =
+  (* create a handle *)
+  let h_out =
+    let h_out = Unix.open_process_out prms.gnuplot in
+    output_string h_out (sprintf "set term %s\n" (opts_of output.term));
+    (match output.file with
+    | Some f -> output_string h_out (sprintf "set output '%s'\n" f)
+    | None -> output_string h_out "set output\n");
+    output_string h_out (prms.init ^ "\n");
+    flush h_out;
+    h_out
   in
-  let module F = New_figure (O) (P) in
-  (module F : Figure)
-
-
-let quick ?(size = 600, 400) (f : (module Figure) -> unit) =
-  let module O : Output = struct
-    let term =
-      { term = "qt"
-      ; font = Some "Helvetica,10"
-      ; size = Some size
-      ; other = Some "enhanced persist raise"
-      }
-
-
-    let file_ext = ""
-
-    (* irrelevant *)
-    let post_action = None
-  end
+  (* hack to make sure that gnuplot terminates if the handle is lost *)
+  Gc.finalise
+    (fun _ ->
+      try ignore (Unix.close_process_out h_out) with
+      | _ -> ())
+    h_out;
+  (* create the main figure module *)
+  let module F = Make (struct
+    let h_out = h_out
+    let prms = prms
+  end)
   in
-  let fig = figure (module O) in
-  let module F = (val fig : Figure) in
-  f (module F);
-  F.draw ~pause:"pause mouse close" ()
+  (* draw the figure *)
+  fig (module F);
+  F.ex "unset multiplot";
+  (* just in case -- that doesn't hurt *)
+  F.ex "unset output";
+  (match output.pause with
+  | Some p -> F.ex p
+  | None -> ());
+  flush h_out;
+  ignore (Unix.close_process_out h_out);
+  (match output.post_action, output.file with
+  | Some action, Some f -> action Fpath.(f |> v |> rem_ext |> to_string)
+  | _ -> ());
+  Sys.command (sprintf "rm -f %s/ocaml_gnuplot_*" prms.tmp_root) |> ignore
+
+
+let interactive ?size f = draw ~output:(qt ?size ~pause:"pause mouse close" ()) f
