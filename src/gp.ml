@@ -284,7 +284,7 @@ struct
           sprintf "%s %s" f opts)
         data
     in
-    ex (plot_cmd ^ String.concat ", " data)
+    ex (plot_cmd ^ " " ^ String.concat ", " data)
 
 
   let plots = _plot "plot"
