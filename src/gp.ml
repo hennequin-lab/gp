@@ -210,7 +210,7 @@ let item ?using ?axes ?style data =
 
 
 (** Contains all the commands you need to draw your figure *)
-module type Figure = sig
+module type Plot = sig
   val ex : string -> unit
   val plot : ?using:string -> ?axes:string -> ?style:string -> data -> unit
   val plots : item list -> unit
@@ -427,7 +427,7 @@ struct
     ex "unset multiplot"
 end
 
-let draw ?(prms = default_prms) ~output (fig : (module Figure) -> unit) =
+let draw ?(prms = default_prms) ~output (fig : (module Plot) -> unit) =
   (* create a handle *)
   let h_out =
     let h_out = Unix.open_process_out prms.gnuplot in
@@ -440,18 +440,18 @@ let draw ?(prms = default_prms) ~output (fig : (module Figure) -> unit) =
     h_out
   in
   (* create the main figure module *)
-  let module F = Make (struct
+  let module P = Make (struct
     let h_out = h_out
     let prms = prms
   end)
   in
   (* draw the figure *)
-  fig (module F);
-  F.ex "unset multiplot";
+  fig (module P);
+  P.ex "unset multiplot";
   (* just in case -- that doesn't hurt *)
-  F.ex "unset output";
+  P.ex "unset output";
   (match output.pause with
-  | Some p -> F.ex p
+  | Some p -> P.ex p
   | None -> ());
   flush h_out;
   ignore (Unix.close_process_out h_out);

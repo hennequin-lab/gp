@@ -6,9 +6,9 @@ Please see the [API documentation](https://hennequin-lab.github.io/docs/gp/Gp).
 open Gp
 
 (* define your figure generically *)
-let figure (module F: Figure) =
+let figure (module P: Plot) =
   let x = Owl.Mat.gaussian 10 2 in
-  F.plot (A x) ~style:"p pt 7 lc 8"
+  P.plot (A x) ~style:"p pt 7 lc 8"
 
 (* then paint your figure with an output format of your choice *)
 let () =
@@ -25,8 +25,8 @@ open Owl
 open Gp
 
 let () =
-  let figure (module F : Figure) =
-    let open F in (* recommended *)
+  let figure (module P : Plot) =
+    let open P in (* recommended *)
     set Title "Test plot";
     set Border [ `b; `l ];
     set Label (`x, "year");

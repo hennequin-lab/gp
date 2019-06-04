@@ -2,16 +2,16 @@ open Owl
 
 (**
  The workflow is:
-   + create your figure, which is a [(module Figure) -> unit] function
+   + define your figure, ie a [(module Plot) -> unit] function
    + decide on an output format (see {!section:out} below)
    + draw your figure: see {!val:draw} below.
 
   Simple example:
   {[
     open Gp
-    let figure (module F: Figure) =
-      F.barebone ();
-      F.plot (F "cos(x)") ~style:"l lc 8 lw 2"
+    let figure (module P: Plot) =
+      P.barebone ();
+      P.plot (F "cos(x)") ~style:"l lc 8 lw 2"
     let _ = draw ~output:(png "test.png") figure
   ]}
 *)
@@ -27,22 +27,6 @@ type prms
            Default is "set key noautotitle; set border 3; set tics out nomirror". *)
 val prms : ?tmp_root:string -> ?gnuplot:string -> ?init:string -> unit -> prms
 
-(** {1:out Output terminals} *)
-
-type output
-
-val svg : ?font:string -> ?size:int * int -> ?other_term_opts:string -> string -> output
-val png : ?font:string -> ?size:int * int -> ?other_term_opts:string -> string -> output
-
-val qt
-  :  ?font:string
-  -> ?size:int * int
-  -> ?other_term_opts:string
-  -> ?pause:string
-  -> unit
-  -> output
-
-val latex : ?term_opts:string -> string -> output
 
 (** {1 Defining your figure} *)
 
@@ -60,10 +44,10 @@ type axis =
 (** {2 Plot properties} *)
 
 (** These are properties you can set/unset, e.g. 
-    {[ let figure (module F: Figure) =
-      F.set Title "a beautiful plot";
-      F.unset Colorbox;
-      F.set Range (`x, (0., Const.pi));
+    {[ let figure (module P: Plot) =
+      P.set Title "a beautiful plot";
+      P.unset Colorbox;
+      P.set Range (`x, (0., Const.pi));
       [...] ]} *)
 
 type _ property =
@@ -112,21 +96,21 @@ type data =
 
 type item
 
-(** See {!val:Figure.plot} for meaning of parameters.
+(** See {!val:Plot.plot} for meaning of parameters.
     Example:
     {[ 
     let () =
       let x = Mat.gaussian 100 4 in
-      let fig (module F) =
-        F.barebone ();
-        F.plots [ item (A x) ~using:"1:3" ~style:"p pt 7 lc 8 ps 0.5";
+      let fig (module P: Plot) =
+        P.barebone ();
+        P.plots [ item (A x) ~using:"1:3" ~style:"p pt 7 lc 8 ps 0.5";
                   item (A x) ~using:"2:4" ~style:"p pt 7 lc 7 ps 0.5" ] in
       draw ~output:(png "test") fig
     ]} *)
 val item : ?using:string -> ?axes:string -> ?style:string -> data -> item
 
 (** Contains all the commands you need to draw your figure *)
-module type Figure = sig
+module type Plot = sig
   (** Executes an arbitrary gnuplot command. *)
   val ex : string -> unit
 
@@ -192,10 +176,10 @@ module type Figure = sig
       Example:
       {[
       let data = Mat.gaussian 20 12 (* 12 = 4x3 *)
-      let figure (module F: Figure) =
-        F.barebone ();
-        F.multiplot (4, 3) (fun k row col ->
-          F.plot (A Mat.(col data k)) ~style:"p pt 7 lc 8") in
+      let figure (module P: Plot) =
+        P.barebone ();
+        P.multiplot (4, 3) (fun k row col ->
+          P.plot (A Mat.(col data k)) ~style:"p pt 7 lc 8") in
       draw ~output:(png "tile") figure ]} *)
   val multiplot
     :  ?rect:(float * float) * (float * float)
@@ -205,11 +189,28 @@ module type Figure = sig
     -> unit
 end
 
+(** {1:out Output terminals} *)
+
+type output
+
+val svg : ?font:string -> ?size:int * int -> ?other_term_opts:string -> string -> output
+val png : ?font:string -> ?size:int * int -> ?other_term_opts:string -> string -> output
+
+val qt
+  :  ?font:string
+  -> ?size:int * int
+  -> ?other_term_opts:string
+  -> ?pause:string
+  -> unit
+  -> output
+
+val latex : ?term_opts:string -> string -> output
+ 
 (** {1 Drawing your figure} *)
 
 (** Main drawing function: takes an output terminal (see {!section:out} above) 
     and a figure. *)
-val draw : ?prms:prms -> output:output -> ((module Figure) -> unit) -> unit
+val draw : ?prms:prms -> output:output -> ((module Plot) -> unit) -> unit
 
 (** This is a shorthand for [draw ~output:(qt ())];
     @param interactive (Default: false) Enables interactions with the QT windows, 
@@ -219,5 +220,5 @@ val draw : ?prms:prms -> output:output -> ((module Figure) -> unit) -> unit
 val interactive
   :  ?interactive:bool
   -> ?size:int * int
-  -> ((module Figure) -> unit)
+  -> ((module Plot) -> unit)
   -> unit

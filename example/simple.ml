@@ -2,8 +2,8 @@ open Owl
 open Gp
 
 let () =
-  let figure (module F : Figure) =
-    let open F in (* recommended *)
+  let figure (module P : Plot) =
+    let open P in (* recommended *)
     set Title "Test plot";
     set Border [ `b; `l ];
     set Label (`x, "year");
@@ -24,8 +24,8 @@ let () =
 
 
 let () =
-  let figure (module F : Figure) =
-  let open F in
+  let figure (module P : Plot) =
+  let open P in
   let x = Mat.sequential 10 20 in
   heatmap x in
   draw ~output:(png "test") figure
