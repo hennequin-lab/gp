@@ -262,7 +262,7 @@ struct
 
 
   let rec write_binary_data = function
-    | F _ -> assert false
+    | F f -> "", f
     | L xl ->
       let x =
         try Mat.concatenate ~axis:1 Array.(of_list xl) with
