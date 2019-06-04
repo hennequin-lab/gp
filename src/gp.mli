@@ -86,16 +86,32 @@ type _ unset_property =
 type data =
   | A of Mat.mat
   | L of Mat.mat list
-  | F of (float -> float)
+  | F of string
+
+type item
+  
+(** Example:
+    {[ 
+    let () =
+      let x = Mat.gaussian 100 4 in
+      let fig (module F) =
+        F.barebone ();
+        F.plots [ item (A x) ~using:"1:3" ~style:"p pt 7 lc 8 ps 0.5";
+                  item (A x) ~using:"2:4" ~style:"p pt 7 lc 7 ps 0.5" ] in
+      draw ~output:(png "test") fig
+    ]} *)
+val item : ?using:string -> ?axes:string -> ?style:string -> data -> item
 
 (** Contains all the commands you need to draw your figure *)
 module type Figure = sig
   (** Execute an arbitrary gnuplot command *)
   val ex : string -> unit
 
-  val plot : (data * string) list -> unit
-  val splot : (data * string) list -> unit
-  val heatmap : Mat.mat -> unit
+  val plot : ?using:string -> ?axes:string -> ?style:string -> data -> unit
+  val plots : item list -> unit
+  val splot : ?using:string -> ?axes:string -> ?style:string -> data -> unit
+  val splots : item list -> unit
+  val heatmap : ?style:string -> Mat.mat -> unit
   val load : string -> unit
   val set : ?o:string -> 'a property -> 'a -> unit
   val unset : 'a unset_property -> 'a -> unit
@@ -120,4 +136,11 @@ end
 (** Main drawing function *)
 val draw : ?prms:prms -> output:output -> ((module Figure) -> unit) -> unit
 
-val interactive : ?size:int * int -> ((module Figure) -> unit) -> unit
+(** [interactive] (default: false) enables interactions with the QT windows, including
+    zooming, etc. Your program will stall until you close the QT window though.
+    [size] (default: 600 x 400 pixels) should be given in (y, x) pixel format. *)
+val interactive
+  :  ?interactive:bool
+  -> ?size:int * int 
+  -> ((module Figure) -> unit)
+  -> unit

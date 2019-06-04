@@ -172,14 +172,51 @@ type _ unset_property =
 type data =
   | A of Mat.mat
   | L of Mat.mat list
-  | F of (float -> float)
+  | F of string
+
+let perhaps_transpose =
+  let f x = if Mat.row_num x = 1 then Mat.transpose x else x in
+  function
+  | A x -> A (f x)
+  | L x -> L (List.map f x)
+  | F f -> F f
+
+
+type item = data * string
+
+let item ?using ?axes ?style data =
+  let data = perhaps_transpose data in
+  let using =
+    match using with
+    | Some u -> "using " ^ u
+    | None ->
+      (match data with
+      | A x -> if Mat.col_num x = 1 then "using 0:1" else "using 1:2"
+      | L x -> if List.length x = 1 then "using 0:1" else "using 1:2"
+      | F _ -> "")
+  in
+  let axes =
+    match axes with
+    | Some a -> "axes " ^ a
+    | None -> ""
+  in
+  let style =
+    match style with
+    | Some s -> "with " ^ s
+    | None -> "with l lc 8"
+  in
+  let opts = String.concat " " [ using; axes; style ] in
+  data, opts
+
 
 (** Contains all the commands you need to draw your figure *)
 module type Figure = sig
   val ex : string -> unit
-  val plot : (data * string) list -> unit
-  val splot : (data * string) list -> unit
-  val heatmap : Mat.mat -> unit
+  val plot : ?using:string -> ?axes:string -> ?style:string -> data -> unit
+  val plots : item list -> unit
+  val splot : ?using:string -> ?axes:string -> ?style:string -> data -> unit
+  val splots : item list -> unit
+  val heatmap : ?style:string -> Mat.mat -> unit
   val load : string -> unit
   val set : ?o:string -> 'a property -> 'a -> unit
   val unset : 'a unset_property -> 'a -> unit
@@ -224,21 +261,17 @@ struct
     filename
 
 
-  let perhaps_transpose x = if Mat.row_num x = 1 then Mat.transpose x else x
-
   let rec write_binary_data = function
     | F _ -> assert false
     | L xl ->
       let x =
-        try Mat.concatenate ~axis:1 Array.(map perhaps_transpose (of_list xl)) with
+        try Mat.concatenate ~axis:1 Array.(of_list xl) with
         | _ -> failwith "plot: vectors must have the same length"
       in
       write_binary_data (A x)
     | A x ->
       let filename = write_arr x in
-      let file_opt =
-        Array.make Mat.(col_num x) "%double" |> Array.to_list |> String.concat ""
-      in
+      let file_opt = "%" ^ string_of_int Mat.(col_num x) ^ "double" in
       let file_opt = sprintf "'%s' binary format='%s'" filename file_opt in
       filename, file_opt
 
@@ -254,10 +287,12 @@ struct
     ex (plot_cmd ^ String.concat ", " data)
 
 
-  let plot = _plot "plot"
-  let splot = _plot "splot"
+  let plots = _plot "plot"
+  let splots = _plot "splot"
+  let plot ?using ?axes ?style data = plots [ item ?using ?axes ?style data ]
+  let splot ?using ?axes ?style data = splots [ item ?using ?axes ?style data ]
 
-  let heatmap mat =
+  let heatmap ?(style = "image") mat =
     let n, m = Mat.shape mat in
     let filename, _ = write_binary_data (A mat) in
     List.iter
@@ -265,11 +300,12 @@ struct
       [ sprintf "set xrange [%f:%f]" (-0.5) (float m -. 0.5)
       ; sprintf "set yrange [%f:%f] reverse" (-0.5) (float n -. 0.5)
       ; sprintf
-          "plot '%s' binary format='%s' array=(%i,%i) w image pixels"
+          "plot '%s' binary format='%s' array=(%i,%i) w %s"
           filename
           "%double"
           m
           n
+          style
       ]
 
 
@@ -431,4 +467,6 @@ let draw ?(prms = default_prms) ~output (fig : (module Figure) -> unit) =
   Sys.command (sprintf "rm -f %s/ocaml_gnuplot_*" prms.tmp_root) |> ignore
 
 
-let interactive ?size f = draw ~output:(qt ?size ~pause:"pause mouse close" ()) f
+let interactive ?(interactive = true) ?size f =
+  let pause = if interactive then Some "pause mouse close" else None in
+  draw ~output:(qt ?size ?pause ()) f
