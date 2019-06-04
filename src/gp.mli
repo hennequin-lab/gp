@@ -44,7 +44,7 @@ val qt
 
 val latex : ?term_opts:string -> string -> output
 
-(** {1 Drawing your figure} *)
+(** {1 Defining your figure} *)
 
 (** {2 Axis types} *)
 
@@ -108,6 +108,8 @@ type data =
           interpreted as [N x 1] for convenience *)
   | F of string (** A function as you would write in gnuplot *)
 
+(** {2 Plotting functions} *)
+
 type item
 
 (** See {!val:Figure.plot} for meaning of parameters.
@@ -165,7 +167,7 @@ module type Figure = sig
   (** Unsets a property. Examples:
     {[ 
       unset Logscale `y;
-      unset Tics `x ]} *) 
+      unset Tics `x ]} *)
   val unset : 'a unset_property -> 'a -> unit
 
   (** Trim the plot to the bare minimum: no axes, no labels, no tics, nothing but your
@@ -202,6 +204,8 @@ module type Figure = sig
     -> (int -> int -> int -> unit)
     -> unit
 end
+
+(** {1 Drawing your figure} *)
 
 (** Main drawing function: takes an output terminal (see {!section:out} above) 
     and a figure. *)
