@@ -4,7 +4,7 @@ open Gp
 let () =
   let figure (module P : Plot) =
     let open P in
-    (* recommended *)
+    P.barebone ();
     set Title "Test plot";
     set Border [ `b; `l ];
     set Label (`x, "year");
