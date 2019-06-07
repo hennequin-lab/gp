@@ -27,7 +27,6 @@ type prms
            Default is "set key noautotitle; set border 3; set tics out nomirror". *)
 val prms : ?tmp_root:string -> ?gnuplot:string -> ?init:string -> unit -> prms
 
-
 (** {1 Defining your figure} *)
 
 (** {2 Axis types} *)
@@ -55,7 +54,7 @@ type _ property =
   | Label : (axis * string) property
   | Range : (axis * (float * float)) property
   | Tics
-      : (axis * [ `list of (float * string) list | `def of float * float * float ])
+      : (axis * [ `auto | `list of (float * string) list | `def of float * float * float ])
         property
   | Key : string property
   | Palette : string property
@@ -205,7 +204,13 @@ val qt
   -> output
 
 val latex : ?term_opts:string -> string -> output
- 
+
+type tikz_font
+
+val cmbright : tikz_font
+val helvetica : tikz_font
+val tikz : ?grid:bool -> ?crop:bool -> ?font:tikz_font -> ?tex:string -> string -> output
+
 (** {1 Drawing your figure} *)
 
 (** Main drawing function: takes an output terminal (see {!section:out} above) 
@@ -217,8 +222,4 @@ val draw : ?prms:prms -> output:output -> ((module Plot) -> unit) -> unit
            including zooming, etc. Your program will stall until you close the
            QT window though.
     @param size (Default: 600 x 400 pixels) Should be given in (y, x) pixel format. *)
-val interactive
-  :  ?interactive:bool
-  -> ?size:int * int
-  -> ((module Plot) -> unit)
-  -> unit
+val interactive : ?interactive:bool -> ?size:int * int -> ((module Plot) -> unit) -> unit

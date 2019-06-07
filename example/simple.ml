@@ -3,7 +3,8 @@ open Gp
 
 let () =
   let figure (module P : Plot) =
-    let open P in (* recommended *)
+    let open P in
+    (* recommended *)
     set Title "Test plot";
     set Border [ `b; `l ];
     set Label (`x, "year");
@@ -20,12 +21,6 @@ let () =
     let y = Mat.uniform ~a:12. ~b:30. n_bins 1 in
     plot (L [ x; y ]) ~style:"lp pt 7 lc 8 lw 2"
   in
-  interactive figure
-
-
-let () =
-  let figure (module P : Plot) =
-  let open P in
-  let x = Mat.sequential 10 20 in
-  heatmap x in
-  draw ~output:(png "test") figure
+  interactive figure;
+  draw ~output:(png "test1") figure;
+  draw ~output:(svg "test1") figure

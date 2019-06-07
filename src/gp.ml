@@ -1,6 +1,8 @@
 open Printf
 open Owl
 
+let default_tmp_root = if Sys.is_directory "/dev/shm" then "/dev/shm" else "/tmp"
+
 type prms =
   { tmp_root : string
   ; gnuplot : string
@@ -8,16 +10,11 @@ type prms =
   }
 
 let prms
-    ?tmp_root
+    ?(tmp_root = default_tmp_root)
     ?(gnuplot = "gnuplot")
     ?(init = "set key noautotitle; set border 3; set tics out nomirror")
     ()
   =
-  let tmp_root =
-    match tmp_root with
-    | Some r -> r
-    | None -> if Sys.is_directory "/dev/shm" then "/dev/shm" else "/tmp"
-  in
   { tmp_root; gnuplot; init }
 
 
@@ -53,6 +50,11 @@ let opts_of z =
 let ensure_ext ext name =
   let name = Fpath.(v name) in
   (if Fpath.has_ext ext name then name else Fpath.add_ext ext name) |> Fpath.to_string
+
+
+let remove_ext ext name =
+  let name = Fpath.(v name) in
+  (if Fpath.has_ext ext name then Fpath.rem_ext name else name) |> Fpath.to_string
 
 
 type output =
@@ -120,6 +122,43 @@ let latex ?(term_opts = latex_default_opts) file_name =
   }
 
 
+type tikz_font = string
+
+let cmbright = Tikz.font_cmbright
+let helvetica = Tikz.font_helvetica
+
+let tikz ?(grid = false) ?(crop = true) ?(font = cmbright) ?(tex = "") file_name =
+  let tex_code = tex in
+  let file_name = ensure_ext "tex" file_name in
+  let tmp = Filename.temp_file ~temp_dir:default_tmp_root "ocaml_gnuplot_" "" in
+  let post_action =
+    Some
+      (fun _ ->
+        (* populate file_name.tex *)
+        let tex = Tikz.preamble_template ~grid font in
+        let tex = tex ^ Tikz.include_fig tmp in
+        let tex = tex ^ "\n" ^ tex_code ^ "\n" ^ Tikz.end_template in
+        let file = open_out file_name in
+        output_string file tex;
+        close_out file;
+        let r = remove_ext "tex" file_name in
+        assert (0 = Sys.command Printf.(sprintf "pdflatex %s.tex" r));
+        if crop then assert (0 = Sys.command Printf.(sprintf "pdfcrop %s.pdf %s.pdf" r r));
+        assert (0 = Sys.command Printf.(sprintf "rm -f %s.aux %s.log* %s.tex" r r r));
+        assert (0 = Sys.command Printf.(sprintf "rm -f %s*" tmp)))
+  in
+  { term =
+      { term = "cairolatex"
+      ; size = None
+      ; font = None
+      ; other = Some "pdf input size 100cm, 100cm dl 0.5"
+      }
+  ; file = Some (ensure_ext "tex" tmp)
+  ; pause = None
+  ; post_action
+  }
+
+
 type axis =
   [ `x
   | `x2
@@ -143,7 +182,8 @@ type _ property =
   | Label : (axis * string) property
   | Range : (axis * (float * float)) property
   | Tics
-      : (axis * [ `list of (float * string) list | `def of float * float * float ])
+      : (axis
+        * [ `auto | `list of (float * string) list | `def of float * float * float ])
         property
   | Key : string property
   | Palette : string property
@@ -327,6 +367,7 @@ struct
           "set %stics %s"
           (string_of_axis ax)
           (match ti with
+          | `auto -> "autofreq"
           | `list s ->
             let z =
               String.concat ", " (List.map (fun (x, la) -> sprintf "'%s' %f" la x) s)
