@@ -94,7 +94,7 @@ let png
 let qt
     ?(font = "Helvetica,10")
     ?(size = 600, 400)
-    ?(other_term_opts = "enhanced persist raise")
+    ?(other_term_opts = "enhanced raise")
     ?pause
     ()
   =
@@ -159,55 +159,103 @@ let tikz ?(grid = false) ?(crop = true) ?(font = cmbright) ?(tex = "") file_name
   }
 
 
-type axis =
-  [ `x
-  | `x2
-  | `y
-  | `y2
-  | `z
-  | `cb
+type side =
+  [ `left (** left *)
+  | `right (** right *)
+  | `top (** top *)
+  | `bottom (** bottom *)
   ]
 
-let string_of_axis = function
-  | `x -> "x"
-  | `x2 -> "x2"
-  | `y -> "y"
-  | `y2 -> "y2"
-  | `z -> "z"
-  | `cb -> "cb"
+type margin =
+  [ `left of float (** left *)
+  | `right of float (** right *)
+  | `top of float (** top *)
+  | `bottom of float (** bottom *)
+  ]
+
+type tics =
+  [ `auto (** let gnuplot take care of it *)
+  | `manual of (float * string) list (** manual list *)
+  | `regular of float * float * float (** start, incr, end *)
+  ]
+
+type property = string
+
+let set = sprintf "set %s"
+let unset = sprintf "unset %s"
+let barebone = "unset border; unset tics; unset colorbox"
+
+let with_opts ?o s =
+  match o with
+  | None -> s
+  | Some o -> sprintf "%s %s" s o
 
 
-type _ property =
-  | Title : string property
-  | Label : (axis * string) property
-  | Range : (axis * (float * float)) property
-  | Tics
-      : (axis
-        * [ `auto | `list of (float * string) list | `def of float * float * float ])
-        property
-  | Key : string property
-  | Palette : string property
-  | Format : (axis * string) property
-  | Autoscale : axis property
-  | Logscale : axis property
-  | Text : (int * string) property
-  | Border : [ `t | `b | `l | `r ] list property
-  | Colorbox : string property
-  | Multiplot : unit property
-  | Prop : string property
+let title ?o title = with_opts ?o (sprintf "set title '%s'" title)
 
-type _ unset_property =
-  | Title : unit unset_property
-  | Label : axis unset_property
-  | Tics : axis unset_property
-  | Key : unit unset_property
-  | Autoscale : axis unset_property
-  | Logscale : axis unset_property
-  | Text : int unset_property
-  | Border : unit unset_property
-  | Colorbox : unit unset_property
-  | Multiplot : unit unset_property
-  | Prop : string unset_property
+let margins x =
+  x
+  |> List.map (function
+         | `left x -> sprintf "set lmargin at screen %f" x
+         | `right x -> sprintf "set rmargin at screen %f" x
+         | `top x -> sprintf "set tmargin at screen %f" x
+         | `bottom x -> sprintf "set bmargin at screen %f" x)
+  |> String.concat ";"
+
+
+let borders ?o x =
+  let total =
+    List.fold_left
+      (fun accu (side : side) ->
+        accu
+        +
+        match side with
+        | `bottom -> 1
+        | `left -> 2
+        | `top -> 4
+        | `right -> 8)
+      0
+      x
+  in
+  with_opts ?o (sprintf "set border %i" total)
+
+
+let tics = sprintf "set tics %s"
+
+let _tics label ?o x =
+  let x =
+    match x with
+    | `auto -> "autofreq"
+    | `regular l -> l |> List.map string_of_float |> String.concat ", "
+    | `manual l ->
+      let z =
+        l |> List.map (fun (x, la) -> sprintf "'%s' %f" la x) |> String.concat ", "
+      in
+      sprintf "( %s )" z
+  in
+  with_opts ?o (sprintf "set %stics %s" label x)
+
+
+let xtics = _tics "x"
+let ytics = _tics "y"
+let ztics = _tics "z"
+let cbtics = _tics "cb"
+let x2tics = _tics "x2"
+let y2tics = _tics "y2"
+let _label c ?o s = with_opts ?o (sprintf "set %slabel '%s'" c s)
+let xlabel = _label "x"
+let ylabel = _label "y"
+let zlabel = _label "z"
+let cblabel = _label "cb"
+let x2label = _label "x2"
+let y2label = _label "y2"
+let _range c ?o (a, b) = with_opts ?o (sprintf "set %srange [%f:%f]" c a b)
+let xrange = _range "x"
+let yrange = _range "y"
+let zrange = _range "z"
+let cbrange = _range "cb"
+let x2range = _range "x2"
+let y2range = _range "y2"
 
 type data =
   | A of Mat.mat
@@ -224,7 +272,7 @@ let perhaps_transpose =
 
 type item = data * string
 
-let item ?using ?axes ?style data =
+let item ?using ?axes ?legend ?style data =
   let data = perhaps_transpose data in
   let using =
     match using with
@@ -240,33 +288,47 @@ let item ?using ?axes ?style data =
     | Some a -> "axes " ^ a
     | None -> ""
   in
+  let legend =
+    match legend with
+    | None -> ""
+    | Some t -> sprintf "title '%s'" t
+  in
   let style =
     match style with
     | Some s -> "with " ^ s
     | None -> "with l lc 8"
   in
-  let opts = String.concat " " [ using; axes; style ] in
+  let opts = String.concat " " [ using; axes; legend; style ] in
   data, opts
 
 
 (** Contains all the commands you need to draw your figure *)
 module type Plot = sig
   val ex : string -> unit
-  val plot : ?using:string -> ?axes:string -> ?style:string -> data -> unit
-  val plots : item list -> unit
-  val splot : ?using:string -> ?axes:string -> ?style:string -> data -> unit
-  val splots : item list -> unit
-  val heatmap : ?style:string -> Mat.mat -> unit
+
+  val plot
+    :  ?using:string
+    -> ?axes:string
+    -> ?legend:string
+    -> ?style:string
+    -> data
+    -> property list
+    -> unit
+
+  val plots : item list -> property list -> unit
+
+  val splot
+    :  ?using:string
+    -> ?axes:string
+    -> ?legend:string
+    -> ?style:string
+    -> data
+    -> property list
+    -> unit
+
+  val splots : item list -> property list -> unit
+  val heatmap : ?style:string -> Mat.mat -> property list -> unit
   val load : string -> unit
-  val set : ?o:string -> 'a property -> 'a -> unit
-  val unset : 'a unset_property -> 'a -> unit
-
-  (** Trim the plot to the bare minimum: no axes, no labels, no tics, nothing but your
-      lovely plot *)
-  val barebone : unit -> unit
-
-  (** Set the plot margins in screen coordinates; (0,0) = bottom left, (1,1) = top right *)
-  val margins : [ `t of float | `b of float | `l of float | `r of float ] list -> unit
 
   val multiplot
     :  ?rect:(float * float) * (float * float)
@@ -316,7 +378,10 @@ struct
       filename, file_opt
 
 
-  let _plot plot_cmd data =
+  let set_properties = List.iter ex
+
+  let _plot plot_cmd data prop =
+    set_properties prop;
     let data =
       List.map
         (fun (x, opts) ->
@@ -329,10 +394,17 @@ struct
 
   let plots = _plot "plot"
   let splots = _plot "splot"
-  let plot ?using ?axes ?style data = plots [ item ?using ?axes ?style data ]
-  let splot ?using ?axes ?style data = splots [ item ?using ?axes ?style data ]
 
-  let heatmap ?(style = "image") mat =
+  let plot ?using ?axes ?legend ?style data prop =
+    plots [ item ?using ?axes ?legend ?style data ] prop
+
+
+  let splot ?using ?axes ?legend ?style data prop =
+    splots [ item ?using ?axes ?legend ?style data ] prop
+
+
+  let heatmap ?(style = "image") mat prop =
+    set_properties prop;
     let n, m = Mat.shape mat in
     let filename, _ = write_binary_data (A mat) in
     List.iter
@@ -350,98 +422,6 @@ struct
 
 
   let load s = ex (sprintf "load '%s'" s)
-
-  let set (type a) ?o (prop : a property) (x : a) =
-    let cmd =
-      match prop with
-      | Title -> sprintf "set title '%s'" x
-      | Label ->
-        let ax, lbl = x in
-        sprintf "set %slabel '%s'" (string_of_axis ax) lbl
-      | Range ->
-        let ax, (a, b) = x in
-        sprintf "set %srange [%f:%f]" (string_of_axis ax) a b
-      | Tics ->
-        let ax, ti = x in
-        sprintf
-          "set %stics %s"
-          (string_of_axis ax)
-          (match ti with
-          | `auto -> "autofreq"
-          | `list s ->
-            let z =
-              String.concat ", " (List.map (fun (x, la) -> sprintf "'%s' %f" la x) s)
-            in
-            sprintf "( %s )" z
-          | `def (a0, step, a1) -> sprintf "%f, %f, %f" a0 step a1)
-      | Key -> sprintf "set key %s" x
-      | Palette -> sprintf "set palette %s" x
-      | Format ->
-        let ax, fmt = x in
-        sprintf "set format %s %s" (string_of_axis ax) fmt
-      | Autoscale -> sprintf "set autoscale %s" (string_of_axis x)
-      | Logscale -> sprintf "set logscale %s" (string_of_axis x)
-      | Text ->
-        let id, lbl = x in
-        sprintf "set label %i %s" id lbl
-      | Border ->
-        let total =
-          List.fold_left
-            (fun accu side ->
-              accu
-              +
-              match side with
-              | `b -> 1
-              | `l -> 2
-              | `t -> 4
-              | `r -> 8)
-            0
-            x
-        in
-        sprintf "set border %i" total
-      | Colorbox -> sprintf "set colorbox %s" x
-      | Multiplot -> "set multiplot"
-      | Prop -> sprintf "set %s" x
-    in
-    let cmd =
-      match o with
-      | Some o -> sprintf "%s %s" cmd o
-      | None -> cmd
-    in
-    ex cmd
-
-
-  let unset (type a) (prop : a unset_property) (x : a) =
-    let cmd =
-      match prop with
-      | Title -> "unset title"
-      | Label -> sprintf "unset %slabel" (string_of_axis x)
-      | Tics -> sprintf "unset %stics" (string_of_axis x)
-      | Key -> "unset key"
-      | Autoscale -> sprintf "unset autoscale %s" (string_of_axis x)
-      | Logscale -> sprintf "unset logscale %s" (string_of_axis x)
-      | Text -> sprintf "unset label %i" x
-      | Border -> "unset border"
-      | Colorbox -> "unset colorbox"
-      | Multiplot -> "unset multiplot"
-      | Prop -> sprintf "unset %s" x
-    in
-    ex cmd
-
-
-  let barebone () =
-    unset Border ();
-    List.iter (unset Tics) [ `x; `y ];
-    unset Colorbox ()
-
-
-  let margins =
-    List.iter (function
-        | `t x -> ex (sprintf "set tmargin at screen %f" x)
-        | `b x -> ex (sprintf "set bmargin at screen %f" x)
-        | `l x -> ex (sprintf "set lmargin at screen %f" x)
-        | `r x -> ex (sprintf "set rmargin at screen %f" x))
-
 
   let multiplot
       ?(rect = (0.1, 0.1), (0.9, 0.9)) ?(spacing = 0.04, 0.04) (rows, cols) plot_fun
@@ -462,7 +442,10 @@ struct
       let b = t -. h in
       let l = rx0 +. (float col *. (sp_x +. w)) in
       let r = l +. w in
-      margins [ `t t; `b b; `l l; `r r ];
+      ex (sprintf "set tmargin at screen %f" t);
+      ex (sprintf "set bmargin at screen %f" b);
+      ex (sprintf "set lmargin at screen %f" l);
+      ex (sprintf "set rmargin at screen %f" r);
       plot_fun k row col
     done;
     ex "unset multiplot"

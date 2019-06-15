@@ -10,9 +10,8 @@ open Owl
   {[
     open Gp
     let figure (module P: Plot) =
-      P.barebone ();
-      P.plot (F "cos(x)") ~style:"l lc 8 lw 2"
-    let _ = draw ~output:(png "test.png") figure
+      P.plot (F "cos(x)") ~style:"l lc 8 lw 2" [ barebone ]
+    let () = draw ~output:(png "test.png") figure
   ]}
 *)
 
@@ -29,56 +28,84 @@ val prms : ?tmp_root:string -> ?gnuplot:string -> ?init:string -> unit -> prms
 
 (** {1 Defining your figure} *)
 
-(** {2 Axis types} *)
+(** {2 Plot properties } *)
 
-type axis =
-  [ `x (** primary x-axis (bottom border) *)
-  | `x2 (** secondary x-axis (top border) *)
-  | `y (** primary y-axis (left border) *)
-  | `y2 (** secondary y-axis (right border) *)
-  | `z (** z-axis (only for 3D plots) *)
-  | `cb (** colorbox axis *)
+type side =
+  [ `left (** left *)
+  | `right (** right *)
+  | `top (** top *)
+  | `bottom (** bottom *)
   ]
 
-(** {2 Plot properties} *)
+type margin =
+  [ `left of float (** left *)
+  | `right of float (** right *)
+  | `top of float (** top *)
+  | `bottom of float (** bottom *)
+  ]
 
-(** These are properties you can set/unset, e.g. 
-    {[ let figure (module P: Plot) =
-      P.set Title "a beautiful plot";
-      P.unset Colorbox;
-      P.set Range (`x, (0., Const.pi));
-      [...] ]} *)
+type tics =
+  [ `auto (** let gnuplot take care of it *)
+  | `manual of (float * string) list (** manual list *)
+  | `regular of float * float * float (** start, incr, end *)
+  ]
 
-type _ property =
-  | Title : string property
-  | Label : (axis * string) property
-  | Range : (axis * (float * float)) property
-  | Tics
-      : (axis * [ `auto | `list of (float * string) list | `def of float * float * float ])
-        property
-  | Key : string property
-  | Palette : string property
-  | Format : (axis * string) property
-  | Autoscale : axis property
-  | Logscale : axis property
-  | Text : (int * string) property
-  | Border : [ `t | `b | `l | `r ] list property
-  | Colorbox : string property
-  | Multiplot : unit property
-  | Prop : string property
+type property
 
-type _ unset_property =
-  | Title : unit unset_property
-  | Label : axis unset_property
-  | Tics : axis unset_property
-  | Key : unit unset_property
-  | Autoscale : axis unset_property
-  | Logscale : axis unset_property
-  | Text : int unset_property
-  | Border : unit unset_property
-  | Colorbox : unit unset_property
-  | Multiplot : unit unset_property
-  | Prop : string unset_property
+val set : string -> property
+val unset : string -> property
+
+(** Trim the plot to the bare minimum: no axes, no labels, no tics, nothing but your
+      lovely plot. A great place to start for a beautiful plot. *)
+val barebone : property
+
+val title : ?o:string -> string -> property
+val margins : margin list -> property
+val borders : ?o:string -> side list -> property
+val tics : string -> property
+
+val xtics
+  :  ?o:string
+  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> property
+
+val ytics
+  :  ?o:string
+  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> property
+
+val ztics
+  :  ?o:string
+  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> property
+
+val cbtics
+  :  ?o:string
+  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> property
+
+val x2tics
+  :  ?o:string
+  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> property
+
+val y2tics
+  :  ?o:string
+  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> property
+
+val xlabel : ?o:string -> string -> property
+val ylabel : ?o:string -> string -> property
+val zlabel : ?o:string -> string -> property
+val cblabel : ?o:string -> string -> property
+val x2label : ?o:string -> string -> property
+val y2label : ?o:string -> string -> property
+val xrange : ?o:string -> float * float -> property
+val yrange : ?o:string -> float * float -> property
+val zrange : ?o:string -> float * float -> property
+val cbrange : ?o:string -> float * float -> property
+val x2range : ?o:string -> float * float -> property
+val y2range : ?o:string -> float * float -> property
 
 (** {2 Types of data you can plot} *)
 
@@ -101,12 +128,19 @@ type item
     let () =
       let x = Mat.gaussian 100 4 in
       let fig (module P: Plot) =
-        P.barebone ();
-        P.plots [ item (A x) ~using:"1:3" ~style:"p pt 7 lc 8 ps 0.5";
-                  item (A x) ~using:"2:4" ~style:"p pt 7 lc 7 ps 0.5" ] in
+        P.plots 
+          [ item (A x) ~using:"1:3" ~style:"p pt 7 lc 8 ps 0.5";
+            item (A x) ~using:"2:4" ~style:"p pt 7 lc 7 ps 0.5" ]
+          [ barebone ] in
       draw ~output:(png "test") fig
     ]} *)
-val item : ?using:string -> ?axes:string -> ?style:string -> data -> item
+val item
+  :  ?using:string
+  -> ?axes:string
+  -> ?legend:string
+  -> ?style:string
+  -> data
+  -> item
 
 (** Contains all the commands you need to draw your figure *)
 module type Plot = sig
@@ -120,47 +154,40 @@ module type Plot = sig
       @param axes In standard gnuplot format, e.g. "x1y2" for primary x-axis and
       secondary y-axis. Defaults to "x1y1". Example:
       {[ 
-         plot (A Mat.(uniform 10 3)) ~using:"1:3" ~style:"lp pt 7 lc 8" 
+         plot (A Mat.(uniform 10 3)) ~using:"1:3" ~style:"lp pt 7 lc 8" [ ... properties ... ]
       ]} *)
-  val plot : ?using:string -> ?axes:string -> ?style:string -> data -> unit
+  val plot
+    :  ?using:string
+    -> ?axes:string
+    -> ?legend:string
+    -> ?style:string
+    -> data
+    -> property list
+    -> unit
 
   (** Invoke gnuplot's [plot] command on a whole list of data items.
       Example:
       {[
         plots [ item (A Mat.(uniform 10 2)) ~style:"p pt 7 lc 7";
-                item (F "cos(x)") ~style:"l lc rgb 'red'" ]
+                item (F "cos(x)") ~style:"l lc rgb 'red'" ] [ ...properties... ]
       ]}*)
-  val plots : item list -> unit
+  val plots : item list -> property list -> unit
 
   (** Same as {!val:plot}, for 3D plots. *)
-  val splot : ?using:string -> ?axes:string -> ?style:string -> data -> unit
+  val splot
+    :  ?using:string
+    -> ?axes:string
+    -> ?legend:string
+    -> ?style:string
+    -> data
+    -> property list
+    -> unit
 
   (** Same as {!val:plots}, for 3D plots. *)
-  val splots : item list -> unit
+  val splots : item list -> property list -> unit
 
-  val heatmap : ?style:string -> Mat.mat -> unit
+  val heatmap : ?style:string -> Mat.mat -> property list -> unit
   val load : string -> unit
-
-  (** Sets a property. Examples:
-    {[ 
-      set Logscale `x;
-      set Tics (`x, `def (0.0, 10.0, 2.0)) ]} *)
-  val set : ?o:string -> 'a property -> 'a -> unit
-
-  (** Unsets a property. Examples:
-    {[ 
-      unset Logscale `y;
-      unset Tics `x ]} *)
-  val unset : 'a unset_property -> 'a -> unit
-
-  (** Trim the plot to the bare minimum: no axes, no labels, no tics, nothing but your
-      lovely plot. A great place to start for a beautiful plot. *)
-  val barebone : unit -> unit
-
-  (** Set the position of your plot's top, bottom, left, and right borders to desired
-      positions in "screen coordinates", from (0,0) for bottom left to (1,1) for top
-      right. *)
-  val margins : [ `t of float | `b of float | `l of float | `r of float ] list -> unit
 
   (** [multiplot ?rect ?spacing (rows, cols) f] automatically sets the plot
       margins for a [(rows x cols)] tile, and populates the tile by calling
@@ -176,9 +203,8 @@ module type Plot = sig
       {[
       let data = Mat.gaussian 20 12 (* 12 = 4x3 *)
       let figure (module P: Plot) =
-        P.barebone ();
         P.multiplot (4, 3) (fun k row col ->
-          P.plot (A Mat.(col data k)) ~style:"p pt 7 lc 8") in
+          P.plot (A Mat.(col data k)) ~style:"p pt 7 lc 8" [ barebone ]) in
       draw ~output:(png "tile") figure ]} *)
   val multiplot
     :  ?rect:(float * float) * (float * float)
@@ -189,6 +215,9 @@ module type Plot = sig
 end
 
 (** {1:out Output terminals} *)
+
+(** NB: if you are in a Jupyter notebook, you should not use any of the terminals below;
+    instead, use {!val:Juplot.draw}. *)
 
 type output
 

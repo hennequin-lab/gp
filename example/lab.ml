@@ -12,20 +12,24 @@ let data =
 
 let () =
   let figure (module P : Plot) =
-    P.barebone ();
-    P.set Border [ `b; `l ];
-    P.set Tics (`x, `auto) ~o:"out nomirror";
-    P.set Tics (`y, `auto) ~o:"out nomirror";
-    P.set Range (`x, (-4., 4.));
-    P.set Range (`y, (-4., 4.));
-    (* we have a huuuuge canvas to paint on, so that we never run out of space
+    let props =
+      [ barebone
+      ; borders [ `bottom; `left ]
+      ; xtics `auto ~o:"out nomirror"
+      ; ytics `auto ~o:"out nomirror"
+      ; xrange (-4., 4.)
+      ; yrange (-4., 4.)
+      ; (* we have a huuuuge canvas to paint on, so that we never run out of space
      * if we want to extend the figure later; typically a plot only occupies
      * a small part -- cf margins below: *)
-    P.margins [ `l 0.2; `r 0.26; `t 0.9; `b 0.84 ];
-    P.set Label (`x, "variable 1");
-    P.set Label (`y, "variable 2");
+        margins [ `left 0.2; `right 0.26; `top 0.9; `bottom 0.84 ]
+      ; xlabel "variable 1"
+      ; ylabel "variable 2"
+      ]
+    in
     P.plots
       [ item (A data) ~style:"p pt 7 lc 8 ps 0.5"; item (F "x") ~style:"l lc 7 dt 2" ]
+      props
   in
   let tex =
     ""
