@@ -426,7 +426,6 @@ struct
   let multiplot
       ?(rect = (0.1, 0.1), (0.9, 0.9)) ?(spacing = 0.04, 0.04) (rows, cols) plot_fun
     =
-    ex (sprintf "set multiplot layout %i,%i" rows cols);
     let (rx0, ry0), (rx1, ry1) = rect in
     let rx0, rx1 = min rx0 rx1, max rx0 rx1 in
     let ry0, ry1 = min ry0 ry1, max ry0 ry1 in
@@ -447,8 +446,7 @@ struct
       ex (sprintf "set lmargin at screen %f" l);
       ex (sprintf "set rmargin at screen %f" r);
       plot_fun k row col
-    done;
-    ex "unset multiplot"
+    done
 end
 
 let draw ?(prms = default_prms) ~output (fig : (module Plot) -> unit) =
@@ -460,6 +458,7 @@ let draw ?(prms = default_prms) ~output (fig : (module Plot) -> unit) =
     | Some f -> output_string h_out (sprintf "set output '%s'\n" f)
     | None -> output_string h_out "set output\n");
     output_string h_out (prms.init ^ "\n");
+    output_string h_out "set multiplot\n";
     flush h_out;
     h_out
   in
@@ -472,7 +471,6 @@ let draw ?(prms = default_prms) ~output (fig : (module Plot) -> unit) =
   (* draw the figure *)
   fig (module P);
   P.ex "unset multiplot";
-  (* just in case -- that doesn't hurt *)
   P.ex "unset output";
   (match output.pause with
   | Some p -> P.ex p
