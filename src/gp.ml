@@ -118,7 +118,8 @@ let latex ?(term_opts = latex_default_opts) file_name =
   { term = { term = "cairolatex"; size = None; font = None; other = Some term_opts }
   ; file = Some (ensure_ext "tex" file_name)
   ; pause = None
-  ; post_action = Some (fun root -> ignore (Sys.command (sprintf "pdflatex %s.tex" root)))
+  ; post_action =
+      Some (fun root -> ignore (Sys.command (sprintf "pdflatex %s.tex" root)))
   }
 
 
@@ -173,6 +174,13 @@ type margin =
   | `bottom of float (** bottom *)
   ]
 
+type offset =
+  [ `left of [ `graph of float | `first of float ]
+  | `right of [ `graph of float | `first of float ]
+  | `top of [ `graph of float | `first of float ]
+  | `bottom of [ `graph of float | `first of float ]
+  ]
+
 type tics =
   [ `auto (** let gnuplot take care of it *)
   | `manual of (float * string) list (** manual list *)
@@ -201,6 +209,39 @@ let margins x =
          | `top x -> sprintf "set tmargin at screen %f" x
          | `bottom x -> sprintf "set bmargin at screen %f" x)
   |> String.concat ";"
+
+
+let offsets x =
+  let to_string = function
+    | `graph z -> sprintf "graph %f" z
+    | `first z -> sprintf "%f" z
+  in
+  let find f = List.fold_left f "0" x in
+  let left =
+    find (fun accu ->
+      function
+      | `left z -> to_string z
+      | _ -> accu)
+  in
+  let right =
+    find (fun accu ->
+      function
+      | `right z -> to_string z
+      | _ -> accu)
+  in
+  let top =
+    find (fun accu ->
+      function
+      | `top z -> to_string z
+      | _ -> accu)
+  in
+  let bottom =
+    find (fun accu ->
+      function
+      | `bottom z -> to_string z
+      | _ -> accu)
+  in
+  String.concat ", " [ left; right; top; bottom ] |> sprintf "set offsets %s"
 
 
 let borders ?o x =
@@ -424,7 +465,10 @@ struct
   let load s = ex (sprintf "load '%s'" s)
 
   let multiplot
-      ?(rect = (0.1, 0.1), (0.9, 0.9)) ?(spacing = 0.04, 0.04) (rows, cols) plot_fun
+      ?(rect = (0.1, 0.1), (0.9, 0.9))
+      ?(spacing = 0.04, 0.04)
+      (rows, cols)
+      plot_fun
     =
     let (rx0, ry0), (rx1, ry1) = rect in
     let rx0, rx1 = min rx0 rx1, max rx0 rx1 in
@@ -463,10 +507,11 @@ let draw ?(prms = default_prms) ~output (fig : (module Plot) -> unit) =
     h_out
   in
   (* create the main figure module *)
-  let module P = Make (struct
-    let h_out = h_out
-    let prms = prms
-  end)
+  let module P =
+    Make (struct
+      let h_out = h_out
+      let prms = prms
+    end)
   in
   (* draw the figure *)
   fig (module P);

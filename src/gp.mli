@@ -44,6 +44,13 @@ type margin =
   | `bottom of float (** bottom *)
   ]
 
+type offset =
+  [ `left of [ `graph of float | `first of float ]
+  | `right of [ `graph of float | `first of float ]
+  | `top of [ `graph of float | `first of float ]
+  | `bottom of [ `graph of float | `first of float ]
+  ]
+
 type tics =
   [ `auto (** let gnuplot take care of it *)
   | `manual of (float * string) list (** manual list *)
@@ -61,6 +68,7 @@ val barebone : property
 
 val title : ?o:string -> string -> property
 val margins : margin list -> property
+val offsets : offset list -> property
 val borders : ?o:string -> side list -> property
 val tics : string -> property
 
