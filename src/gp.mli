@@ -115,6 +115,9 @@ val cbrange : ?o:string -> float * float -> property
 val x2range : ?o:string -> float * float -> property
 val y2range : ?o:string -> float * float -> property
 
+(** Some decent default plot properties. *)
+val default_props : property list
+
 (** {2 Types of data you can plot} *)
 
 type data =
@@ -205,8 +208,8 @@ module type Plot = sig
       (screen) coordinates of any two opposite corners (default: [((0.1, 0.1),
       (0.9, 0.9))] i.e. 10% padding on all sides). You can also adjust the
       horizontal and vertical spacing between vignettes by setting [?spacing]
-      (default: [(0.04, 0.04)] in screen coordinates). 
-    
+      (default: [(0.04, 0.04)] in screen coordinates).
+
       Example:
       {[
       let data = Mat.gaussian 20 12 (* 12 = 4x3 *)

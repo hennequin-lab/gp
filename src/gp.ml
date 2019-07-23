@@ -263,7 +263,7 @@ let borders ?o x =
 
 let tics = sprintf "set tics %s"
 
-let _tics label ?o x =
+let _tics label ?(o = "out nomirror") x =
   let x =
     match x with
     | `auto -> "autofreq"
@@ -274,7 +274,7 @@ let _tics label ?o x =
       in
       sprintf "( %s )" z
   in
-  with_opts ?o (sprintf "set %stics %s" label x)
+  with_opts ~o (sprintf "set %stics %s" label x)
 
 
 let xtics = _tics "x"
@@ -297,6 +297,7 @@ let zrange = _range "z"
 let cbrange = _range "cb"
 let x2range = _range "x2"
 let y2range = _range "y2"
+let default_props = [ barebone; borders [ `left; `bottom ]; xtics `auto; ytics `auto ]
 
 type data =
   | A of Mat.mat
