@@ -302,7 +302,8 @@ let default_props = [ barebone; borders [ `left; `bottom ]; xtics `auto; ytics `
 type data =
   | A of Mat.mat
   | L of Mat.mat list
-  | F of string
+  | F of ((float -> float) * Mat.mat)
+  | S of string
 
 let perhaps_transpose =
   let f x = if Mat.row_num x = 1 then Mat.transpose x else x in
@@ -310,6 +311,7 @@ let perhaps_transpose =
   | A x -> A (f x)
   | L x -> L (List.map f x)
   | F f -> F f
+  | S s -> S s
 
 
 type item = data * string
@@ -323,7 +325,8 @@ let item ?using ?axes ?legend ?style data =
       (match data with
       | A x -> if Mat.col_num x = 1 then "using 0:1" else "using 1:2"
       | L x -> if List.length x = 1 then "using 0:1" else "using 1:2"
-      | F _ -> "")
+      | F _ -> "using 1:2"
+      | S _ -> "")
   in
   let axes =
     match axes with
@@ -406,7 +409,21 @@ struct
 
 
   let rec write_binary_data = function
-    | F f -> "", f
+    | F (f, x) ->
+      let x =
+        if Mat.col_num x = 1
+        then x
+        else if Mat.row_num x = 1
+        then Mat.transpose x
+        else failwith "x must be a vector"
+      in
+      let y = Mat.map f x in
+      let data = Mat.concat_horizontal x y in
+      let filename = write_arr data in
+      let file_opt = "%" ^ string_of_int Mat.(col_num data) ^ "double" in
+      let file_opt = sprintf "'%s' binary format='%s'" filename file_opt in
+      filename, file_opt
+    | S s -> "", s
     | L xl ->
       let x =
         try Mat.concatenate ~axis:1 Array.(of_list xl) with

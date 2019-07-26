@@ -127,7 +127,8 @@ type data =
       (** A list of owl arrays, which are concatenated along the second axis
           before being passed to gnuplot. Again, arrays of size [1 x N] are
           interpreted as [N x 1] for convenience *)
-  | F of string (** A function as you would write in gnuplot *)
+  | F of ((float -> float) * Mat.mat) (** A function f(x) *)
+  | S of string (** A function as you would write in gnuplot *)
 
 (** {2 Plotting functions} *)
 
