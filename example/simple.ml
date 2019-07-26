@@ -15,8 +15,8 @@ let () =
       [ barebone
       ; title "test plot"
       ; borders [ `bottom; `left ]
-      ; xtics (`regular [ y0; 5.; y1 ]) ~o:"out nomirror"
-      ; ytics (`regular [ 10.; 5. ]) ~o:"out nomirror"
+      ; xtics (`regular [ y0; 5.; y1 ])
+      ; ytics `auto
       ; xlabel "year"
       ; ylabel "temperature"
       ]
