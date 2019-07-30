@@ -191,7 +191,11 @@ type property = string
 
 let set = sprintf "set %s"
 let unset = sprintf "unset %s"
-let barebone = "unset border; unset tics; unset colorbox"
+
+let barebone =
+  "unset border; unset tics; unset label; unset xlabel; unset ylabel; unset zlabel; \
+   unset cblabel; unset colorbox"
+
 
 let with_opts ?o s =
   match o with
