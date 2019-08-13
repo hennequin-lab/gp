@@ -74,32 +74,32 @@ val tics : string -> property
 
 val xtics
   :  ?o:string
-  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> [ `auto | `manual of (float * string) list | `regular of float list ]
   -> property
 
 val ytics
   :  ?o:string
-  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> [ `auto | `manual of (float * string) list | `regular of float list ]
   -> property
 
 val ztics
   :  ?o:string
-  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> [ `auto | `manual of (float * string) list | `regular of float list ]
   -> property
 
 val cbtics
   :  ?o:string
-  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> [ `auto | `manual of (float * string) list | `regular of float list ]
   -> property
 
 val x2tics
   :  ?o:string
-  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> [ `auto | `manual of (float * string) list | `regular of float list ]
   -> property
 
 val y2tics
   :  ?o:string
-  -> [ `auto | `manual of (float * property) list | `regular of float list ]
+  -> [ `auto | `manual of (float * string) list | `regular of float list ]
   -> property
 
 val xlabel : ?o:string -> string -> property
