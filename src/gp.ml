@@ -1,7 +1,11 @@
 open Printf
 open Owl
 
-let default_tmp_root = if Sys.is_directory "/dev/shm" then "/dev/shm" else "/tmp"
+let default_tmp_root =
+  match Unix.stat "/dev/shm" with
+  | {st_kind = S_DIR; _} -> "/dev/shm"
+  | _ -> "/tmp"
+  | exception Unix.Unix_error (Unix.ENOENT, _, _) -> "/tmp"
 
 type prms =
   { tmp_root : string
