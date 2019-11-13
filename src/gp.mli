@@ -127,7 +127,8 @@ type data =
       (** A list of owl arrays, which are concatenated along the second axis
           before being passed to gnuplot. Again, arrays of size [1 x N] are
           interpreted as [N x 1] for convenience *)
-  | F of ((float -> float) * Mat.mat) (** A function f(x) over some x-range given as a 1xN or Nx1 matrix *)
+  | F of ((float -> float) * Mat.mat)
+      (** A function f(x) over some x-range given as a 1xN or Nx1 matrix *)
   | S of string (** A function as you would write in gnuplot *)
 
 (** {2 Plotting functions} *)
@@ -198,7 +199,12 @@ module type Plot = sig
   (** Same as {!val:plots}, for 3D plots. *)
   val splots : item list -> property list -> unit
 
-  val heatmap : ?style:string -> Mat.mat -> property list -> unit
+  val heatmap
+    :  ?style:string
+    -> [ `grid of Mat.mat * Mat.mat * Mat.mat | `mat of Mat.mat ]
+    -> property list
+    -> unit
+
   val load : string -> unit
 
   (** [multiplot ?rect ?spacing (rows, cols) f] automatically sets the plot

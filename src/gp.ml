@@ -118,8 +118,7 @@ let latex ?(term_opts = latex_default_opts) file_name =
   { term = { term = "cairolatex"; size = None; font = None; other = Some term_opts }
   ; file = Some (ensure_ext "tex" file_name)
   ; pause = None
-  ; post_action =
-      Some (fun root -> ignore (Sys.command (sprintf "pdflatex %s.tex" root)))
+  ; post_action = Some (fun root -> ignore (Sys.command (sprintf "pdflatex %s.tex" root)))
   }
 
 
@@ -376,7 +375,13 @@ module type Plot = sig
     -> unit
 
   val splots : item list -> property list -> unit
-  val heatmap : ?style:string -> Mat.mat -> property list -> unit
+
+  val heatmap
+    :  ?style:string
+    -> [ `grid of Mat.mat * Mat.mat * Mat.mat | `mat of Mat.mat ]
+    -> property list
+    -> unit
+
   val load : string -> unit
 
   val multiplot
@@ -403,6 +408,23 @@ struct
       Unix.map_file
         file
         Bigarray.Float64
+        Bigarray.c_layout
+        true
+        [| Mat.row_num x; Mat.col_num x |]
+    in
+    Bigarray.Genarray.blit x x_mem;
+    Unix.close file;
+    filename
+
+
+  let write_arr_s x =
+    let module Mat = Dense.Matrix.S in
+    let filename = Filename.temp_file ~temp_dir:prms.tmp_root "ocaml_gnuplot_" "" in
+    let file = Unix.(openfile filename [ O_RDWR; O_CREAT; O_TRUNC ] 0o666) in
+    let x_mem =
+      Unix.map_file
+        file
+        Bigarray.Float32
         Bigarray.c_layout
         true
         [| Mat.row_num x; Mat.col_num x |]
@@ -467,21 +489,33 @@ struct
 
 
   let heatmap ?(style = "image") mat prop =
-    set_properties prop;
-    let n, m = Mat.shape mat in
-    let filename, _ = write_binary_data (A mat) in
+    let filename, format, xr, yr =
+      match mat with
+      | `mat a ->
+        let n, m = Mat.shape a in
+        let format =
+          sprintf "binary format='%s' array=(%i,%i) w %s" "%double" m n style
+        in
+        write_arr a, format, (-0.5, Int.to_float m -. 0.5), (-0.5, Int.to_float n -. 0.5)
+      | `grid (x, y, a) ->
+        let n, m = Mat.shape a in
+        assert (m = Mat.col_num x);
+        assert (n = Mat.col_num y);
+        let z =
+          Mat.(concat_vh [| [| create 1 1 Float.(of_int m); x |]; [| transpose y; a |] |])
+        in
+        ( write_arr_s (Owl.Dense.Matrix.Generic.cast_d2s z)
+        , sprintf "binary w %s" style
+        , Mat.(min' x, max' x)
+        , Mat.(min' y, max' y) )
+    in
     List.iter
       ex
-      [ sprintf "set xrange [%f:%f]" (-0.5) (float m -. 0.5)
-      ; sprintf "set yrange [%f:%f] reverse" (-0.5) (float n -. 0.5)
-      ; sprintf
-          "plot '%s' binary format='%s' array=(%i,%i) w %s"
-          filename
-          "%double"
-          m
-          n
-          style
-      ]
+      [ sprintf "set xrange [%f:%f]" (fst xr) (snd xr)
+      ; sprintf "set yrange [%f:%f] reverse" (fst yr) (snd yr)
+      ];
+    set_properties prop;
+    ex (sprintf "plot '%s' %s" filename format)
 
 
   let load s = ex (sprintf "load '%s'" s)
