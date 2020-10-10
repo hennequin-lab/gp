@@ -123,6 +123,8 @@ val default_props : property list
 type data =
   | A of Mat.mat
       (** An owl array; if it has a single row, it is interpreted as a single column *)
+  | AP of Mat.mat
+      (** A "protected" owl array; if it has a single row, it is not interprted as a single column *)
   | L of Mat.mat list
       (** A list of owl arrays, which are concatenated along the second axis
           before being passed to gnuplot. Again, arrays of size [1 x N] are

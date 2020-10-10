@@ -28,7 +28,7 @@ let () =
       ]
     in
     P.plots
-      [ item (A data) ~style:"p pt 7 lc 8 ps 0.5"; item (F "x") ~style:"l lc 7 dt 2" ]
+      [ item (A data) ~style:"p pt 7 lc 8 ps 0.5"; item (S "x") ~style:"l lc 7 dt 2" ]
       props
   in
   let tex =

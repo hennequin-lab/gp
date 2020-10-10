@@ -2,7 +2,3 @@
  (names simple lab)
  (libraries gp owl))
 
-(alias
- (name runtest)
- (action
-  (run ./simple.exe)))

@@ -3,9 +3,10 @@ open Owl
 
 let default_tmp_root =
   match Unix.stat "/dev/shm" with
-  | {st_kind = S_DIR; _} -> "/dev/shm"
+  | { st_kind = S_DIR; _ } -> "/dev/shm"
   | _ -> "/tmp"
   | exception Unix.Unix_error (Unix.ENOENT, _, _) -> "/tmp"
+
 
 type prms =
   { tmp_root : string
@@ -308,6 +309,7 @@ let default_props = [ barebone; borders [ `left; `bottom ]; xtics `auto; ytics `
 
 type data =
   | A of Mat.mat
+  | AP of Mat.mat
   | L of Mat.mat list
   | F of ((float -> float) * Mat.mat)
   | S of string
@@ -315,6 +317,7 @@ type data =
 let perhaps_transpose =
   let f x = if Mat.row_num x = 1 then Mat.transpose x else x in
   function
+  | AP x -> AP x
   | A x -> A (f x)
   | L x -> L (List.map f x)
   | F f -> F f
@@ -330,6 +333,7 @@ let item ?using ?axes ?legend ?style data =
     | Some u -> "using " ^ u
     | None ->
       (match data with
+      | AP x -> if Mat.col_num x = 1 then "using 0:1" else "using 1:2"
       | A x -> if Mat.col_num x = 1 then "using 0:1" else "using 1:2"
       | L x -> if List.length x = 1 then "using 0:1" else "using 1:2"
       | F _ -> "using 1:2"
@@ -465,6 +469,7 @@ struct
       let file_opt = "%" ^ string_of_int Mat.(col_num x) ^ "double" in
       let file_opt = sprintf "'%s' binary format='%s'" filename file_opt in
       filename, file_opt
+    | AP x -> write_binary_data (A x)
 
 
   let set_properties = List.iter ex
@@ -585,8 +590,10 @@ let draw ?(prms = default_prms) ~output (fig : (module Plot) -> unit) =
   (match output.post_action, output.file with
   | Some action, Some f -> action Fpath.(f |> v |> rem_ext |> to_string)
   | _ -> ());
-  Sys.command (sprintf "rm -f %s/ocaml_gnuplot_*" prms.tmp_root) |> ignore
+  ()
 
+
+(* Sys.command (sprintf "rm -f %s/ocaml_gnuplot_*" prms.tmp_root) |> ignore *)
 
 let interactive ?(interactive = true) ?size f =
   let pause = if interactive then Some "pause mouse close" else None in
