@@ -230,7 +230,7 @@ module type Plot = sig
     :  ?rect:(float * float) * (float * float)
     -> ?spacing:float * float
     -> int * int
-    -> (int -> int -> int -> unit)
+    -> (?margins:margin list -> int -> int -> int -> unit)
     -> unit
 end
 

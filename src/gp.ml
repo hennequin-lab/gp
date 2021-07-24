@@ -196,10 +196,7 @@ type property = string
 let set = sprintf "set %s"
 let unset = sprintf "unset %s"
 
-let barebone =
-  "unset border; unset tics; unset label; unset xlabel; unset ylabel; unset zlabel; \
-   unset cblabel; unset colorbox"
-
+let barebone = "reset; unset border; unset tics"
 
 let with_opts ?o s =
   match o with
@@ -396,7 +393,7 @@ module type Plot = sig
     :  ?rect:(float * float) * (float * float)
     -> ?spacing:float * float
     -> int * int
-    -> (int -> int -> int -> unit)
+    -> (?margins:margin list -> int -> int -> int -> unit)
     -> unit
 end
 
@@ -550,11 +547,12 @@ struct
       let b = t -. h in
       let l = rx0 +. (float col *. (sp_x +. w)) in
       let r = l +. w in
+      let marg = Some [`left l; `right r; `top t; `bottom b] in
       ex (sprintf "set tmargin at screen %f" t);
       ex (sprintf "set bmargin at screen %f" b);
       ex (sprintf "set lmargin at screen %f" l);
       ex (sprintf "set rmargin at screen %f" r);
-      plot_fun k row col
+      plot_fun ?margins:marg k row col
     done
 end
 
