@@ -61,6 +61,7 @@ type property
 
 val set : string -> property
 val unset : string -> property
+val load : string -> property
 
 (** Trim the plot to the bare minimum: no axes, no labels, no tics, nothing but your
       lovely plot. A great place to start for a beautiful plot. *)
@@ -230,7 +231,7 @@ module type Plot = sig
     :  ?rect:(float * float) * (float * float)
     -> ?spacing:float * float
     -> int * int
-    -> (?margins:margin list -> int -> int -> int -> unit)
+    -> (margins:property -> int -> int -> int -> unit)
     -> unit
 end
 
@@ -245,7 +246,8 @@ val svg : ?font:string -> ?size:int * int -> ?other_term_opts:string -> string -
 val png : ?font:string -> ?size:int * int -> ?other_term_opts:string -> string -> output
 
 val qt
-  :  ?font:string
+  :  ?id:int
+  ->  ?font:string
   -> ?size:int * int
   -> ?other_term_opts:string
   -> ?pause:string

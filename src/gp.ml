@@ -97,14 +97,16 @@ let png
 
 
 let qt
+?id
     ?(font = "Helvetica,10")
     ?(size = 600, 400)
     ?(other_term_opts = "enhanced raise")
     ?pause
     ()
   =
+    let term = match id with None -> "qt" | Some i -> Printf.sprintf "qt %i" i in
   { term =
-      { term = "qt"; font = Some font; size = Some size; other = Some other_term_opts }
+      { term ; font = Some font; size = Some size; other = Some other_term_opts }
   ; file = None
   ; pause
   ; post_action = None
@@ -195,8 +197,8 @@ type property = string
 
 let set = sprintf "set %s"
 let unset = sprintf "unset %s"
-
-let barebone = "reset; unset border; unset tics"
+let load = sprintf "load '%s'"
+let barebone = "reset; set key noautotitle; unset border; unset tics"
 
 let with_opts ?o s =
   match o with
@@ -223,26 +225,22 @@ let offsets x =
   in
   let find f = List.fold_left f "0" x in
   let left =
-    find (fun accu ->
-      function
+    find (fun accu -> function
       | `left z -> to_string z
       | _ -> accu)
   in
   let right =
-    find (fun accu ->
-      function
+    find (fun accu -> function
       | `right z -> to_string z
       | _ -> accu)
   in
   let top =
-    find (fun accu ->
-      function
+    find (fun accu -> function
       | `top z -> to_string z
       | _ -> accu)
   in
   let bottom =
-    find (fun accu ->
-      function
+    find (fun accu -> function
       | `bottom z -> to_string z
       | _ -> accu)
   in
@@ -393,7 +391,7 @@ module type Plot = sig
     :  ?rect:(float * float) * (float * float)
     -> ?spacing:float * float
     -> int * int
-    -> (?margins:margin list -> int -> int -> int -> unit)
+    -> (margins:property -> int -> int -> int -> unit)
     -> unit
 end
 
@@ -547,12 +545,12 @@ struct
       let b = t -. h in
       let l = rx0 +. (float col *. (sp_x +. w)) in
       let r = l +. w in
-      let marg = Some [`left l; `right r; `top t; `bottom b] in
+      let margins = margins [ `left l; `right r; `top t; `bottom b ] in
       ex (sprintf "set tmargin at screen %f" t);
       ex (sprintf "set bmargin at screen %f" b);
       ex (sprintf "set lmargin at screen %f" l);
       ex (sprintf "set rmargin at screen %f" r);
-      plot_fun ?margins:marg k row col
+      plot_fun ~margins k row col
     done
 end
 
@@ -589,7 +587,6 @@ let draw ?(prms = default_prms) ~output (fig : (module Plot) -> unit) =
   | Some action, Some f -> action Fpath.(f |> v |> rem_ext |> to_string)
   | _ -> ());
   ()
-
 
 (* Sys.command (sprintf "rm -f %s/ocaml_gnuplot_*" prms.tmp_root) |> ignore *)
 
